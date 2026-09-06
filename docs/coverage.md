@@ -1,6 +1,6 @@
 # Coverage and source policy
 
-Version 0.1.0 is a foundation for applications launching in India, the United States, and Japan. It does not provide complete legal coverage, a tax filing service, legal advice, or automatic compliance certification. Country aliases and locale presets are conveniences; they do not establish a person's nationality, residence, tax domicile, or governing law.
+Version 0.2.0 provides selected government-source implementation plans and utilities for TypeScript and JavaScript applications launching in India, the United States, and Japan. It does not provide complete legal coverage, a tax filing service, legal advice, or automatic compliance certification. Country aliases and locale presets are conveniences; they do not establish a person's nationality, residence, tax domicile, or governing law.
 
 ## Sources reviewed on 2026-09-06
 
@@ -16,6 +16,8 @@ Version 0.1.0 is a foundation for applications launching in India, the United St
 | Japan privacy | [PPC: laws and policies](https://www.ppc.go.jp/en/legal/) | Selected APPI review controls. Only the original Japanese texts have legal effect. |
 | Time-zone behavior | [TC39 Temporal documentation](https://tc39.es/proposal-temporal/docs/zoneddatetime.html) | Temporal polyfill with explicit DST disambiguation; runtime ICU supplies zone data. |
 
+Implementation guidance also links to the [MeitY DPDP Act](https://www.meity.gov.in/static/uploads/2024/06/2bf1f0e9f04e6fb4f8fef35e82c42aa5.pdf), [2025 Rules](https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf), [CBIC invoice Rule 46](https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001), [California registration and record guidance](https://taxes.ca.gov/sales-and-use-tax/doing-business/), [CDTFA rate guidance](https://www.cdtfa.ca.gov/taxes-and-fees/know-your-rate.htm), and PPC [general](https://www.ppc.go.jp/personalinfo/legal/guidelines_tsusoku/) and [overseas-transfer](https://www.ppc.go.jp/personalinfo/legal/guidelines_offshore/) guidance. Control-level links identify the source used for each implementation suggestion. The updated FTC guide supports separate new COPPA controls for third-party disclosure consent and retention policy, preserving existing control IDs.
+
 Sources are reference links, not bundled copies of legislation. Review dates document a source review for this release, not a guarantee of present legal validity. Sources may change independently of package releases. Bundled law entries without a precise applicability period return `verify-commencement`; a query date different from `reviewedOn` sets `sourceReviewRequired`. Historical queries are not a historical legal database.
 
 ## Scope limits
@@ -25,7 +27,12 @@ Sources are reference links, not bundled copies of legislation. Review dates doc
 - Tax arithmetic assumes the caller has determined taxable amounts, rates, jurisdiction, registration, exemptions, and supply treatment. No income-tax presets, payroll, customs, tax returns, credits, cess, or address-based tax lookup.
 - Laws are selected privacy, child-data, and tax review checklists. They do not cover all state laws, sectors, employment, consumer protection, accessibility, payments, or all cross-border obligations.
 - Legal control records track the latest user assertion. They do not inspect code, implement consent collection, or prove the control is operational.
+- `laws.plan()` and the CLI organize implementation work from the bundled rule catalog. They do not monitor government websites or update application behavior automatically.
 
 ## Updating rules
 
 When changing a bundled rule, cite an official source, record the review date and actual effective period when established, describe the precise scope, add behavior tests if the calculation or selection changes, and publish a new package version. Do not silently rewrite an existing release asset. Applications needing continuously updated law/rate data should maintain reviewed custom rules and a refresh process outside this library.
+
+## Runtime verification
+
+The 0.2.0 changes were checked with runtime tests on Node.js 22, isolated ESM/CommonJS and TypeScript consumers, a globally installed CLI, and a generated frontend bundle with no Node-only imports. Seven runtime smoke checks also passed in Chromium, including exact money formatting, tax calculations, time conversion, and review planning. Full React Native/Hermes, Electron, and Next.js applications were not run in this repository; verify integration and locale behavior in your target runtime.

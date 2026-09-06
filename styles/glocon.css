@@ -1,0 +1,23 @@
+@import './tokens.css';
+:where(.glocon-button, .glocon-input) { box-sizing: border-box; font: inherit; }
+.glocon-button { min-block-size: 44px; min-inline-size: 44px; padding: var(--glocon-space-2) var(--glocon-space-4); border: 1px solid transparent; border-radius: var(--glocon-radius); background: var(--glocon-accent); color: var(--glocon-on-accent); font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
+.glocon-button--secondary { background: var(--glocon-background); color: var(--glocon-foreground); border-color: var(--glocon-border); }
+.glocon-button--danger { background: var(--glocon-danger); color: var(--glocon-background); }
+.glocon-button:disabled, .glocon-button[aria-disabled="true"] { cursor: not-allowed; }
+.glocon-button:disabled { opacity: .6; }
+.glocon-button:focus-visible, .glocon-input:focus-visible { outline: 3px solid var(--glocon-focus); outline-offset: 3px; }
+.glocon-field, .glocon-stack { display: flex; flex-direction: column; min-inline-size: 0; gap: var(--glocon-space-2); }
+.glocon-label { font-weight: 600; color: var(--glocon-foreground); }
+.glocon-input { inline-size: 100%; min-inline-size: 0; min-block-size: 44px; padding: var(--glocon-space-2) var(--glocon-space-3); border: 1px solid var(--glocon-border); border-radius: var(--glocon-radius); color: var(--glocon-foreground); background: var(--glocon-background); font-size: max(1em, 16px); }
+.glocon-input[aria-invalid="true"] { border-color: var(--glocon-danger); }
+.glocon-hint, .glocon-error { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
+.glocon-hint { color: var(--glocon-muted); }
+.glocon-error { color: var(--glocon-danger); }
+.glocon-empty { padding: var(--glocon-space-8); color: var(--glocon-foreground); border: 1px dashed var(--glocon-border); border-radius: var(--glocon-radius); overflow-wrap: anywhere; }
+.glocon-empty h2 { margin-block: 0 var(--glocon-space-2); font-size: 1.125rem; }
+.glocon-empty p { color: var(--glocon-muted); line-height: 1.5; }
+.glocon-status { color: var(--glocon-foreground); line-height: 1.5; }
+@media (forced-colors: active) {
+  .glocon-button { border-color: ButtonText; }
+  .glocon-input { border-color: FieldText; }
+}

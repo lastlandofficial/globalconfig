@@ -1,38 +1,229 @@
 {
-  "name": "globalconfig",
-  "version": "0.1.0",
-  "description": "Country configuration, currency and time conversion, tax calculations, and legal checklists for global apps. India, USA, and Japan first.",
+  "name": "glocon",
+  "version": "0.3.0",
+  "description": "globalconfig: UI components and audits, framework integrations, country configuration, currency, time, and government-source workflows for JavaScript and TypeScript.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }, "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" } },
-    "./countries": { "import": { "types": "./dist/countries.d.ts", "default": "./dist/countries.js" }, "require": { "types": "./dist/countries.d.cts", "default": "./dist/countries.cjs" } },
-    "./currency": { "import": { "types": "./dist/currency.d.ts", "default": "./dist/currency.js" }, "require": { "types": "./dist/currency.d.cts", "default": "./dist/currency.cjs" } },
-    "./time": { "import": { "types": "./dist/time.d.ts", "default": "./dist/time.js" }, "require": { "types": "./dist/time.d.cts", "default": "./dist/time.cjs" } },
-    "./tax": { "import": { "types": "./dist/tax.d.ts", "default": "./dist/tax.js" }, "require": { "types": "./dist/tax.d.cts", "default": "./dist/tax.cjs" } },
-    "./laws": { "import": { "types": "./dist/laws.d.ts", "default": "./dist/laws.js" }, "require": { "types": "./dist/laws.d.cts", "default": "./dist/laws.cjs" } },
-    "./package.json": "./package.json"
+  "bin": {
+    "glocon": "./bin/glocon.mjs"
   },
-  "files": ["dist", "README.md", "LICENSE", "docs"],
-  "sideEffects": false,
-  "engines": { "node": ">=20" },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./countries": {
+      "import": {
+        "types": "./dist/countries.d.ts",
+        "default": "./dist/countries.js"
+      },
+      "require": {
+        "types": "./dist/countries.d.cts",
+        "default": "./dist/countries.cjs"
+      }
+    },
+    "./currency": {
+      "import": {
+        "types": "./dist/currency.d.ts",
+        "default": "./dist/currency.js"
+      },
+      "require": {
+        "types": "./dist/currency.d.cts",
+        "default": "./dist/currency.cjs"
+      }
+    },
+    "./time": {
+      "import": {
+        "types": "./dist/time.d.ts",
+        "default": "./dist/time.js"
+      },
+      "require": {
+        "types": "./dist/time.d.cts",
+        "default": "./dist/time.cjs"
+      }
+    },
+    "./tax": {
+      "import": {
+        "types": "./dist/tax.d.ts",
+        "default": "./dist/tax.js"
+      },
+      "require": {
+        "types": "./dist/tax.d.cts",
+        "default": "./dist/tax.cjs"
+      }
+    },
+    "./laws": {
+      "import": {
+        "types": "./dist/laws.d.ts",
+        "default": "./dist/laws.js"
+      },
+      "require": {
+        "types": "./dist/laws.d.cts",
+        "default": "./dist/laws.cjs"
+      }
+    },
+    "./package.json": "./package.json",
+    "./ui": {
+      "import": {
+        "types": "./dist/ui/index.d.ts",
+        "default": "./dist/ui/index.js"
+      },
+      "require": {
+        "types": "./dist/ui/index.d.cts",
+        "default": "./dist/ui/index.cjs"
+      }
+    },
+    "./browser": {
+      "import": {
+        "types": "./dist/ui/browser/index.d.ts",
+        "default": "./dist/ui/browser/index.js"
+      },
+      "require": {
+        "types": "./dist/ui/browser/index.d.cts",
+        "default": "./dist/ui/browser/index.cjs"
+      }
+    },
+    "./playwright": {
+      "import": {
+        "types": "./dist/ui/playwright/index.d.ts",
+        "default": "./dist/ui/playwright/index.js"
+      },
+      "require": {
+        "types": "./dist/ui/playwright/index.d.cts",
+        "default": "./dist/ui/playwright/index.cjs"
+      }
+    },
+    "./react": {
+      "import": {
+        "types": "./dist/ui/react/index.d.ts",
+        "default": "./dist/ui/react/index.js"
+      },
+      "require": {
+        "types": "./dist/ui/react/index.d.cts",
+        "default": "./dist/ui/react/index.cjs"
+      }
+    },
+    "./native": {
+      "import": {
+        "types": "./dist/ui/native/index.d.ts",
+        "default": "./dist/ui/native/index.js"
+      },
+      "require": {
+        "types": "./dist/ui/native/index.d.cts",
+        "default": "./dist/ui/native/index.cjs"
+      }
+    },
+    "./styles.css": "./styles/glocon.css",
+    "./tokens.css": "./styles/tokens.css",
+    "./report.schema.json": "./docs/ui/report.schema.json"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE",
+    "docs",
+    "styles",
+    "llms.txt",
+    "examples",
+    "CONTRIBUTING.md",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "tsup",
+    "build": "node scripts/clean.mjs && tsup",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test test/*.test.mjs",
+    "test": "npm run build && node --test test/*.test.mjs && vitest run",
     "check": "npm run typecheck && npm test && node scripts/check-package.mjs",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check",
-    "example": "npm run build && node examples/quickstart.mjs"
+    "example": "npm run build && node examples/quickstart.mjs",
+    "test:browser": "playwright test",
+    "test:ui-package": "node scripts/ui-package-smoke.mjs",
+    "check:all": "npm run check && npm run test:browser && npm run test:ui-package"
   },
-  "repository": { "type": "git", "url": "git+https://github.com/lastlandofficial/globalconfig.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lastlandofficial/globalconfig.git"
+  },
   "homepage": "https://github.com/lastlandofficial/globalconfig#readme",
-  "bugs": { "url": "https://github.com/lastlandofficial/globalconfig/issues" },
-  "keywords": ["globalconfig", "internationalization", "i18n", "currency", "timezone", "tax", "gst", "compliance", "india", "usa", "japan", "typescript"],
-  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
-  "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" },
-  "devDependencies": { "tsup": "^8.5.1", "typescript": "~5.9.3" }
+  "bugs": {
+    "url": "https://github.com/lastlandofficial/globalconfig/issues"
+  },
+  "keywords": [
+    "globalconfig",
+    "internationalization",
+    "i18n",
+    "currency",
+    "timezone",
+    "tax",
+    "gst",
+    "compliance",
+    "india",
+    "usa",
+    "japan",
+    "typescript",
+    "ui",
+    "ux",
+    "accessibility",
+    "react",
+    "nextjs",
+    "react-native",
+    "electron",
+    "playwright",
+    "developer-tools"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "decimal.js": "^10.6.0",
+    "@axe-core/playwright": "^4.10.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "playwright": "^1.58.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "tsup": {
+      "esbuild": "$esbuild"
+    }
+  },
+  "peerDependencies": {
+    "playwright": ">=1.50.0 <2",
+    "react": ">=18.0.0 <20"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
 }

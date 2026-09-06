@@ -1,48 +1,108 @@
 # globalconfig
 
-**Build for more countries with less configuration.**
+**Less setup. Better developer experience. One JavaScript and TypeScript toolkit.**
 
-Currency, time zones, taxes, and legal review workflows behind one TypeScript API. Start with **India, the United States, and Japan**. Use it in a checkout, scheduling service, SaaS backend, or a browser app through your bundler.
+glocon brings UI components, UI audits, state contracts, framework integrations, and country utilities into globalconfig. Use it in React, Next.js, React Native, Electron, or Node.js. Government-source privacy and tax workflows remain one part of the toolkit.
+
+| Need | Import or command |
+| --- | --- |
+| Accessible React primitives and async views | `glocon/react` + `glocon/styles.css` |
+| UI snapshots, rules, and state contracts | `glocon/ui` |
+| Check a running web app | `glocon audit <url>` |
+| Audit existing authenticated browser tests | `glocon/playwright` |
+| DOM layout checks | `glocon/browser` |
+| Checks against measured native nodes | `glocon/native` |
+| Country, currency, time, tax, and requirement plans | `glocon` and its country subpaths |
+| Detect your framework | `glocon doctor` |
+
+Authentication and additional service integrations are part of the product direction. This release does not implement an authentication provider or session system.
 
 [![CI](https://github.com/lastlandofficial/globalconfig/actions/workflows/ci.yml/badge.svg)](https://github.com/lastlandofficial/globalconfig/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-## Install now — no registry account needed
+## Install
 
-The prebuilt GitHub release is public. Choose your package manager:
+The globalconfig library is published on npm as `glocon`.
 
 ```sh
-npm install https://github.com/lastlandofficial/globalconfig/releases/download/v0.1.0/globalconfig-0.1.0.tgz
-pnpm add https://github.com/lastlandofficial/globalconfig/releases/download/v0.1.0/globalconfig-0.1.0.tgz
-yarn add https://github.com/lastlandofficial/globalconfig/releases/download/v0.1.0/globalconfig-0.1.0.tgz
-bun add https://github.com/lastlandofficial/globalconfig/releases/download/v0.1.0/globalconfig-0.1.0.tgz
+npm install glocon
+pnpm add glocon
+yarn add glocon
+bun add glocon
 ```
 
-Imports use `globalconfig` regardless of the installation URL. Consumers do not need credentials, build tools, or install scripts. Use a release tarball instead of the source repository URL: compiled files live in release assets.
+These package managers share the npm registry; there is no separate Bun or pnpm publication step. ESM, CommonJS, and TypeScript declarations are included. Consumers do not need build tools or install scripts.
 
-**npm registry publication is pending.** Once published, the shorter commands will be `npm install globalconfig`, `pnpm add globalconfig`, `yarn add globalconfig`, and `bun add globalconfig`. These package managers share the npm registry; there is no separate Bun or pnpm publication step. See [publishing](docs/publishing.md).
+Prebuilt tarballs are also available from [GitHub releases](https://github.com/lastlandofficial/globalconfig/releases). See [publishing](docs/publishing.md) for the release workflow.
+
+## Start with UI
+
+```sh
+npm install glocon
+npx glocon ui init
+npx glocon doctor
+```
+
+```tsx
+import { Button, Field, Stack } from 'glocon/react';
+import 'glocon/styles.css';
+
+export function ProfileForm() {
+  return <Stack>
+    <Field label="Display name" name="displayName" hint="Shown on your profile." />
+    <Button onClick={() => console.log('Save profile')}>Save</Button>
+  </Stack>;
+}
+```
+
+React is an optional peer dependency. For browser audits, install the optional runner in the same project:
+
+```sh
+npm install -D playwright
+npx playwright install chromium
+npx glocon audit http://localhost:3000 --json
+```
+
+You can also install the command globally with `npm install -g glocon`. For browser audits we recommend the local `npx glocon` command, so it resolves your project's Playwright installation. A global CLI requires Playwright in its own installation environment (`npm install -g playwright`).
+
+`glocon ui init` creates `glocon.ui.json` without overwriting an existing file. Use `glocon audit --help` for viewport, readiness, configuration, and CI failure thresholds. UI features require no country configuration. See the [UI guide](docs/ui/README.md), [framework integrations](docs/ui/integrations.md), and [rule reference](docs/ui/rules.md).
+
+## Set up country utilities and government-source workflows
+
+```sh
+npm install -g glocon
+glocon init
+glocon plan
+```
+
+`init` asks for the country, adds a local `glocon` dependency, and creates shared JSON configuration plus clients for frontend bundlers and Node.js. Existing setup files are preserved. `plan` shows applicability questions, implementation tasks, suggested evidence, and official sources. Set your reviewed answers in `glocon.config.json`; unanswered facts stay unknown.
+
+For scripts: `glocon init --country IN --no-install`. Export a plan with `glocon plan --json`. See [getting started](docs/getting-started.md) for framework integration and [the government-source workflow](docs/government-workflow.md) for rule selection and evidence.
 
 ## One client, country defaults
 
 ```ts
-import { createGlobalConfig } from 'globalconfig';
+import { createGlobalConfig } from 'glocon';
 
-const india = createGlobalConfig({ country: 'IN' });
+const india = createGlobalConfig('IN');
 
 india.currency.format('123456.78'); // ₹1,23,456.78
+india.currency.toMinorUnits('10.25'); // 1025n
 india.time.convert('2026-09-01T12:00:00Z');
 // { local: '2026-09-01T17:30:00', offset: '+05:30', ... }
 
 india.tax.calculate({
-  country: 'IN', amount: '1000', rate: '18', supply: 'intra-state',
+  amount: '1000', rate: '18', supply: 'intra-state',
 });
 // net: '1000.00', tax: '180.00', gross: '1180.00'
 // CGST: '90.00', SGST: '90.00'
 
-const review = india.laws.assess({
+const plan = india.laws.plan({
   facts: { collectsPersonalData: true, sellsTaxableItems: true },
 });
-// Source-linked controls, applicability questions, dates, and review progress.
+// plan.questions: unanswered applicability questions
+// plan.tasks: implementation steps, evidence, source links, timing, and status
+// plan.progress: recorded review work
 ```
 
 Tax and law helpers support implementation and review. They do not certify an application's compliance. The first release covers indirect-tax arithmetic and selected privacy/tax checklists, not every law or tax in a country. Check the [coverage and sources](docs/coverage.md) before using these features.
@@ -55,7 +115,7 @@ Tax and law helpers support implementation and review. They do not certify an ap
 | Currency | Decimal calculations, cross rates, freshness checks, formatting, minor units, async provider adapter |
 | Time | Instant and wall-clock conversion, DST ambiguity handling, localized display |
 | Tax | India GST split, explicit US combined sales tax, Japan consumption tax, inclusive prices, custom marginal schedules, dated rate registry |
-| Laws | Selected India DPDP, US CCPA/COPPA, Japan APPI, and tax review checklists; custom rules; evidence notes; import/export of progress |
+| Laws | Selected India DPDP, US CCPA/COPPA, Japan APPI, and tax review checklists; actionable plans; custom rules; evidence notes; import/export of progress |
 
 | Country | Code / aliases | Currency | Default locale | Time zone |
 | --- | --- | --- | --- | --- |
@@ -68,7 +128,7 @@ Tax and law helpers support implementation and review. They do not certify an ap
 Supply rates from your preferred provider. Every quote means **units of currency per one base unit**. There are no bundled market rates or automatic network calls.
 
 ```ts
-import { convertCurrency, toMinorUnits, fromMinorUnits } from 'globalconfig/currency';
+import { convertCurrency, toMinorUnits, fromMinorUnits } from 'glocon/currency';
 
 const result = convertCurrency({
   amount: '100', from: 'USD', to: 'JPY',
@@ -94,7 +154,7 @@ Use `createCurrencyConverter(async () => rates)` to connect a bank API, FX vendo
 ## Time conversion
 
 ```ts
-import { convertTime, convertLocalTime } from 'globalconfig/time';
+import { convertTime, convertLocalTime } from 'glocon/time';
 
 convertTime('2026-09-01T12:00:00Z', 'JP');
 // local: '2026-09-01T21:00:00', offset: '+09:00'
@@ -114,7 +174,7 @@ convertLocalTime('2026-11-01T01:30', {
 ## Tax calculations
 
 ```ts
-import { calculateTax, createTaxManager } from 'globalconfig/tax';
+import { calculateTax, createTaxManager } from 'glocon/tax';
 
 calculateTax({ country: 'US', amount: '100', rate: '8.875', jurisdiction: 'Example district' });
 // tax: '8.88', gross: '108.88' — example rate, not a location lookup
@@ -139,8 +199,31 @@ Aggregate amounts at the legally appropriate invoice/rate level before calling. 
 
 ## Legal review workflow
 
+Configure application facts once and turn the selected rules into work:
+
 ```ts
-import { createLawsManager } from 'globalconfig/laws';
+const app = createGlobalConfig({
+  country: 'US',
+  facts: {
+    collectsPersonalData: true,
+    ccpaApplies: true, // Set after reviewing scope with the linked authority.
+    servesChildrenUnder13: false,
+    sellsTaxableItems: false,
+  },
+});
+
+const plan = app.laws.plan();
+for (const task of plan.tasks) {
+  console.log(task.title, task.implementation, task.evidence, task.source);
+}
+```
+
+`plan()` includes both work needing applicability context and work selected for review, with explicit labels. It omits rules with a false applicability condition or an expired declared period. Upcoming work keeps its timing label. Source review flags remain visible even when all tasks are recorded as done. Implementation and evidence suggestions are our interpretation of the linked sources.
+
+Use the standalone manager when you only need the review workflow:
+
+```ts
+import { createLawsManager } from 'glocon/laws';
 
 const laws = createLawsManager();
 const report = laws.assess({
@@ -171,11 +254,11 @@ Use `register(rule)` to add your own sourced rules. `createLawsManager({ rules }
 ESM, CommonJS, and declarations are included. Subpath imports avoid bringing unrelated modules into application bundles.
 
 ```js
-const { createGlobalConfig } = require('globalconfig');
+const { createGlobalConfig } = require('glocon');
 const japan = createGlobalConfig({ country: 'JP' });
 ```
 
-Node.js 20+ and Bun are supported. Browser apps need a modern runtime with `Intl` and `BigInt`, plus a bundler that resolves npm imports; use a full ICU runtime for locale and time-zone coverage. No framework, DOM, environment variable, or server process is required by the library. React/Next.js, Vue/Nuxt, Svelte, Express, and other JavaScript apps can use the same API.
+Node.js 20+ and Bun are supported. Browser and React Native apps need a runtime with the required `Intl` and `BigInt` support, plus a bundler that resolves npm imports; verify the target engine's locale and time-zone behavior. Country utilities and the UI core require no framework, DOM, environment variable, or server process. The React and browser adapters have their documented runtime requirements. The CLI uses Node.js separately from the runtime library. See [integration guidance](docs/getting-started.md) for React, Next.js, React Native, Electron, and Node.js.
 
 ## Develop
 

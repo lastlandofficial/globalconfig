@@ -19,13 +19,18 @@ export const countries: Readonly<Record<CountryCode, CountryConfig>> = freeze({
   JP: { code: 'JP', name: 'Japan', currency: 'JPY', locale: 'ja-JP', locales: ['ja-JP'], timeZones: ['Asia/Tokyo'], minorUnits: 0, callingCode: '+81' },
 });
 
-const aliases: Readonly<Record<string, CountryCode>> = { IN: 'IN', IND: 'IN', INDIA: 'IN', US: 'US', USA: 'US', 'UNITED STATES': 'US', 'UNITED STATES OF AMERICA': 'US', JP: 'JP', JPN: 'JP', JAPAN: 'JP' };
+const aliases = { IN: 'IN', IND: 'IN', INDIA: 'IN', US: 'US', USA: 'US', 'UNITED STATES': 'US', 'UNITED STATES OF AMERICA': 'US', JP: 'JP', JPN: 'JP', JAPAN: 'JP' } as const;
+
+/** Resolve literal country codes and names for country-specific autocomplete. */
+export type CountryCodeFor<Input extends string> = Uppercase<Input> extends keyof typeof aliases
+  ? (typeof aliases)[Uppercase<Input>]
+  : CountryCode;
 
 export function resolveCountry(input: string): CountryCode {
   if (typeof input !== 'string') throw new TypeError('country must be a string');
   const key = input.trim().toUpperCase();
   if (!Object.hasOwn(aliases, key)) throw new RangeError(`Unsupported country: ${input}. Supported: IN, US, JP`);
-  return aliases[key]!;
+  return aliases[key as keyof typeof aliases];
 }
 
 export function getCountry(input: string): CountryConfig { return countries[resolveCountry(input)]; }

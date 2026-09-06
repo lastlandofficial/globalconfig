@@ -1,9 +1,40 @@
 import { getCountry, resolveCountry } from './countries';
 import type { CountryCode } from './countries';
 import { dateOnly, freeze, isoInstant } from './internal';
+import { lawGuidance } from './law-guidance';
 
 export type LawTopic = 'privacy' | 'children' | 'tax';
 export type AppFact = 'collectsPersonalData' | 'servesChildrenUnder13' | 'ccpaApplies' | 'sellsTaxableItems';
+/** Questions for application owners; an unanswered question stays unknown. */
+export const appFacts: Readonly<Record<AppFact, { readonly question: string; readonly help: string }>> = freeze({
+  collectsPersonalData: {
+    question: 'Does your service collect or handle personal data?',
+    help: 'Review account fields, logs, identifiers, analytics, and data collected through third-party SDKs.',
+  },
+  servesChildrenUnder13: {
+    question: 'Does your service meet the COPPA child-directed or actual-knowledge tests?',
+    help: 'Review the FTC audience criteria and third-party collection. A terms-of-service age limit alone does not settle this question.',
+  },
+  ccpaApplies: {
+    question: 'Has your business been determined to fall within CCPA scope?',
+    help: 'Review California connections, current business thresholds, definitions, and exemptions before answering.',
+  },
+  sellsTaxableItems: {
+    question: 'Do you sell goods or services that may be taxable in this jurisdiction?',
+    help: 'Review product classification and supply location; registration and collection obligations need a separate determination.',
+  },
+});
+
+export interface LawControl {
+  readonly id: string;
+  readonly title: string;
+  /** Developer implementation suggestions, rather than verbatim legal requirements. */
+  readonly implementation?: readonly string[];
+  /** Suggested review artifacts; these do not prove legal compliance. */
+  readonly evidence?: readonly string[];
+  /** More specific official source; falls back to the rule source when omitted. */
+  readonly source?: string;
+}
 export interface AppContext {
   country: string;
   /** Omitted facts remain unknown, rather than being assumed false. */
@@ -25,10 +56,10 @@ export interface LawRule {
   readonly effectiveTo?: string;
   readonly timing: string;
   readonly when: readonly AppFact[];
-  readonly controls: readonly { readonly id: string; readonly title: string }[];
+  readonly controls: readonly LawControl[];
 }
 
-export const lawRules: readonly LawRule[] = freeze([
+export const lawRules: readonly LawRule[] = freeze(([
   {
     id: 'in-dpdp', country: 'IN', title: 'Digital Personal Data Protection framework', topic: 'privacy', jurisdiction: 'India',
     summary: 'Plan notice, lawful processing, rights handling, safeguards, and child-data controls for digital personal data.',
@@ -65,6 +96,8 @@ export const lawRules: readonly LawRule[] = freeze([
       { id: 'audience-review', title: 'Assess child-directed content and actual knowledge of users under 13' },
       { id: 'parental-consent', title: 'Implement required parental notices and verifiable consent, accounting for exceptions' },
       { id: 'parental-rights', title: 'Support parental review/deletion and appropriate security and retention controls' },
+      { id: 'third-party-consent', title: 'Review separate parental consent for third-party disclosures' },
+      { id: 'retention-policy', title: 'Maintain a written retention and deletion policy for child data' },
     ],
   },
   {
@@ -91,7 +124,10 @@ export const lawRules: readonly LawRule[] = freeze([
       { id: 'invoices-and-filings', title: 'Implement required invoices, records, rounding, returns, and remittances' },
     ],
   })),
-]);
+] satisfies LawRule[]).map(rule => ({
+  ...rule,
+  controls: rule.controls.map(control => ({ ...control, ...lawGuidance[rule.id]?.[control.id] })),
+})));
 
 export type ReviewStatus = 'todo' | 'in-progress' | 'done' | 'not-applicable';
 export interface ControlRecord {
@@ -111,11 +147,18 @@ function validateRule(rule: LawRule) {
   if (rule.effectiveFrom !== undefined) dateOnly(rule.effectiveFrom);
   if (rule.effectiveTo !== undefined) dateOnly(rule.effectiveTo);
   if (rule.effectiveFrom && rule.effectiveTo && rule.effectiveTo <= rule.effectiveFrom) throw new RangeError('effectiveTo must follow effectiveFrom');
-  if (!Array.isArray(rule.when) || rule.when.some(fact => !['collectsPersonalData', 'servesChildrenUnder13', 'ccpaApplies', 'sellsTaxableItems'].includes(fact))) throw new RangeError('Unknown applicability fact');
+  if (!Array.isArray(rule.when) || rule.when.some(fact => !Object.hasOwn(appFacts, fact))) throw new RangeError('Unknown applicability fact');
   const ids = new Set<string>();
   if (!Array.isArray(rule.controls) || !rule.controls.length) throw new TypeError('At least one control is required');
   for (const control of rule.controls) {
     if (!control.id?.trim() || !control.title?.trim() || ids.has(control.id)) throw new RangeError('Control IDs must be nonempty and unique within a law');
+    for (const field of ['implementation', 'evidence'] as const) {
+      const values = control[field];
+      if (values !== undefined && (!Array.isArray(values) || values.some(value => typeof value !== 'string' || !value.trim()))) throw new TypeError(`Control ${field} must be an array of nonempty strings`);
+    }
+    if (control.source !== undefined) {
+      if (typeof control.source !== 'string' || new URL(control.source).protocol !== 'https:') throw new TypeError('Control source must be an HTTPS URL');
+    }
     ids.add(control.id);
   }
 }
@@ -128,7 +171,11 @@ export function createLawsManager(options: { rules?: readonly LawRule[]; records
   const register = (rule: LawRule) => {
     validateRule(rule);
     if (rules.has(rule.id)) throw new RangeError(`Duplicate law rule: ${rule.id}`);
-    rules.set(rule.id, freeze({ ...rule, when: [...rule.when], controls: rule.controls.map(control => ({ ...control })) }));
+    rules.set(rule.id, freeze({ ...rule, when: [...rule.when], controls: rule.controls.map(control => ({
+      ...control,
+      ...(control.implementation === undefined ? {} : { implementation: [...control.implementation] }),
+      ...(control.evidence === undefined ? {} : { evidence: [...control.evidence] }),
+    })) }));
   };
   const record = (input: ControlRecord) => {
     if (!rules.get(input.ruleId)?.controls.some(control => control.id === input.controlId)) throw new RangeError('Unknown law or control');
@@ -144,26 +191,56 @@ export function createLawsManager(options: { rules?: readonly LawRule[]; records
     if (filter.topic !== undefined && !['privacy', 'children', 'tax'].includes(filter.topic)) throw new RangeError('Unknown law topic');
     return Object.freeze([...rules.values()].filter(rule => (!country || rule.country === country) && (!filter.topic || rule.topic === filter.topic)));
   };
+  const assess = (context: AppContext) => {
+    const on = dateOnly(context.on ?? new Date().toISOString().slice(0, 10));
+    if (context.facts !== undefined && (!context.facts || typeof context.facts !== 'object' || Array.isArray(context.facts))) throw new TypeError('App facts must be an object of boolean answers');
+    const facts = context.facts ?? {};
+    for (const [fact, value] of Object.entries(facts)) {
+      if (!Object.hasOwn(appFacts, fact) || typeof value !== 'boolean') throw new TypeError(`Invalid app fact: ${fact}`);
+    }
+    const items = list({ country: context.country }).map(rule => {
+      const applicability = rule.when.some(fact => facts[fact] === false) ? 'not-indicated' as const : rule.when.some(fact => facts[fact] === undefined) ? 'needs-context' as const : 'review-required' as const;
+      const timing = rule.effectiveFrom && on < rule.effectiveFrom ? 'upcoming' as const : rule.effectiveTo && on >= rule.effectiveTo ? 'outside-period' as const : rule.effectiveFrom ? 'within-period' as const : 'verify-commencement' as const;
+      return {
+        rule, applicability, timing,
+        sourceReviewRequired: on !== rule.reviewedOn,
+        missingFacts: rule.when.filter(fact => facts[fact] === undefined),
+        controls: rule.controls.map(control => ({ ...control, record: records.get(key(rule.id, control.id)) ?? null })),
+      };
+    });
+    return freeze({ country: resolveCountry(context.country), on, scope: 'Selected developer checklists, not exhaustive legal coverage or a compliance certification.', items });
+  };
   return Object.freeze({
-    register, list, record,
+    register, list, record, assess,
     exportRecords: () => Object.freeze([...records.values()]),
-    assess(context: AppContext) {
-      const on = dateOnly(context.on ?? new Date().toISOString().slice(0, 10));
-      const facts = context.facts ?? {};
-      for (const [fact, value] of Object.entries(facts)) {
-        if (!['collectsPersonalData', 'servesChildrenUnder13', 'ccpaApplies', 'sellsTaxableItems'].includes(fact) || typeof value !== 'boolean') throw new TypeError(`Invalid app fact: ${fact}`);
-      }
-      const items = list({ country: context.country }).map(rule => {
-        const applicability = rule.when.some(fact => facts[fact] === false) ? 'not-indicated' : rule.when.some(fact => facts[fact] === undefined) ? 'needs-context' : 'review-required';
-        const timing = rule.effectiveFrom && on < rule.effectiveFrom ? 'upcoming' : rule.effectiveTo && on >= rule.effectiveTo ? 'outside-period' : rule.effectiveFrom ? 'within-period' : 'verify-commencement';
-        return {
-          rule, applicability, timing,
-          sourceReviewRequired: on !== rule.reviewedOn,
-          missingFacts: rule.when.filter(fact => facts[fact] === undefined),
-          controls: rule.controls.map(control => ({ ...control, record: records.get(key(rule.id, control.id)) ?? null })),
-        };
+    /** Turn the assessment into questions and implementation tasks with source links. */
+    plan(context: AppContext) {
+      const report = assess(context);
+      const candidates = report.items.filter(item => item.applicability !== 'not-indicated' && item.timing !== 'outside-period');
+      const missing = [...new Set(candidates.flatMap(item => item.missingFacts))];
+      const questions = missing.map(fact => ({
+        fact, ...appFacts[fact],
+        ruleIds: candidates.filter(item => item.missingFacts.includes(fact)).map(item => item.rule.id),
+        sources: [...new Set(candidates.filter(item => item.missingFacts.includes(fact)).map(item => item.rule.source))],
+      }));
+      const tasks = candidates.flatMap(item => item.controls.map(control => ({
+        ruleId: item.rule.id, ruleTitle: item.rule.title, controlId: control.id, title: control.title,
+        topic: item.rule.topic, jurisdiction: item.rule.jurisdiction,
+        scope: item.rule.scope,
+        applicability: item.applicability, timing: item.timing, timingNote: item.rule.timing,
+        source: control.source ?? item.rule.source, reviewedOn: item.rule.reviewedOn,
+        sourceReviewRequired: item.sourceReviewRequired,
+        implementation: control.implementation ?? [], evidence: control.evidence ?? [],
+        status: control.record?.status ?? 'todo' as const, record: control.record,
+      })));
+      const sourcesToReview = [...new Set(candidates.filter(item => item.sourceReviewRequired)
+        .flatMap(item => [item.rule.source, ...item.controls.map(control => control.source ?? item.rule.source)]))];
+      const count = (status: ReviewStatus) => tasks.filter(task => task.status === status).length;
+      return freeze({
+        country: report.country, on: report.on, scope: report.scope,
+        questions, tasks, sourcesToReview,
+        progress: { total: tasks.length, todo: count('todo'), inProgress: count('in-progress'), done: count('done'), notApplicable: count('not-applicable') },
       });
-      return freeze({ country: resolveCountry(context.country), on, scope: 'Selected developer checklists, not exhaustive legal coverage or a compliance certification.', items });
     },
   });
 }

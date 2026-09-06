@@ -5,3 +5,7 @@ coverage/
 .env*
 .npmrc
 .DS_Store
+
+.migration-history/
+test-results/
+playwright-report/

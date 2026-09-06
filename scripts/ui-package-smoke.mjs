@@ -1,0 +1,30 @@
+import { readFileSync } from 'node:fs';
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { resolve, join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const exec = promisify(execFile);
+if (!process.argv[2]) await exec('npm', ['pack', '--ignore-scripts']);
+const archive = resolve(process.argv[2] ?? `glocon-${version}.tgz`);
+const directory = await mkdtemp(join(tmpdir(), 'glocon-consumer-'));
+try {
+  await writeFile(join(directory, 'package.json'), JSON.stringify({ name: 'glocon-consumer', private: true, type: 'module' }));
+  await exec('npm', ['install', '--ignore-scripts', archive], { cwd: directory });
+  const basic = await exec(process.execPath, ['--input-type=module', '-e', `import { auditSnapshot } from 'glocon/ui'; import { auditDocument } from 'glocon/browser'; import { auditNative } from 'glocon/native'; import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); if (typeof auditSnapshot !== 'function' || typeof auditDocument !== 'function' || typeof auditNative !== 'function') throw Error('Missing exports'); try { require.resolve('react'); throw Error('React installed unexpectedly'); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } console.log('Core/browser/native imports work without React or browser installation');`], { cwd: directory });
+  console.log(basic.stdout.trim());
+  const rules = await exec(process.execPath, ['node_modules/glocon/bin/glocon.mjs', 'rules', '--json'], { cwd: directory });
+  if (!JSON.parse(rules.stdout).length) throw Error('UI CLI requires an optional peer');
+  await exec('npm', ['install', '--ignore-scripts', 'react@19', '@types/react@19', '@types/node@22', 'playwright@^1.50.0'], { cwd: directory });
+  const full = `if (typeof require('glocon/ui').auditSnapshot !== 'function') throw Error('Missing UI subpath'); const core = require('glocon'); const react = require('glocon/react'); const runner = require('glocon/playwright'); if (typeof core.checkContract !== 'function' || !react.Field || typeof runner.auditPage !== 'function') throw Error('Broken CJS export'); for (const path of ['glocon/styles.css', 'glocon/tokens.css', 'glocon/report.schema.json']) require.resolve(path); console.log('CommonJS, React, runner, styles, and schema exports work');`;
+  console.log((await exec(process.execPath, ['-e', full], { cwd: directory })).stdout.trim());
+  const types = `import { auditSnapshot, type UISnapshot } from 'glocon';\nimport { Field, type AsyncValue } from 'glocon/react';\nimport { auditPage } from 'glocon/playwright';\nimport { auditNative } from 'glocon/native';\nimport { auditDocument } from 'glocon/browser';\nconst state: AsyncValue<string> = { status: 'success', data: 'ok' };\nvoid [auditSnapshot, Field, auditPage, auditNative, auditDocument, state];\n`;
+  await writeFile(join(directory, 'consumer.mts'), types);
+  await writeFile(join(directory, 'consumer.cts'), types);
+  await exec(process.execPath, [resolve('node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--module', 'NodeNext', '--target', 'ES2022', 'consumer.mts', 'consumer.cts'], { cwd: directory });
+  console.log('TypeScript NodeNext ESM and CommonJS declarations pass');
+  const cli = await exec(process.execPath, ['node_modules/glocon/bin/glocon.mjs', '--version'], { cwd: directory });
+  if (cli.stdout.trim() !== version) throw Error('Wrong CLI version');
+  console.log(`Packed CLI runs as ${version}`);
+} finally { await rm(directory, { recursive: true, force: true }); }

@@ -16,14 +16,14 @@ try {
     execFileSync(manager, args, { cwd, stdio: 'pipe' });
     const smoke = `import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { createGlobalConfig, convertLocalTime } from 'globalconfig';
+import { createGlobalConfig, convertLocalTime } from 'glocon';
 const require = createRequire(import.meta.url);
 assert.equal(createGlobalConfig({ country: 'JP' }).tax.calculate({ country: 'JP', amount: '1000', category: 'standard' }).gross, '1100');
-assert.equal(require('globalconfig/currency').toMinorUnits('1.005', 'USD'), 101n);
+assert.equal(require('glocon/currency').toMinorUnits('1.005', 'USD'), 101n);
 assert.equal(convertLocalTime('2026-09-01T09:00', { from: 'America/New_York', to: 'JP' }).local, '2026-09-01T22:00:00');
 for (const entry of ['countries', 'currency', 'time', 'tax', 'laws']) {
-  assert.ok(Object.keys(await import('globalconfig/' + entry)).length);
-  assert.ok(Object.keys(require('globalconfig/' + entry)).length);
+  assert.ok(Object.keys(await import('glocon/' + entry)).length);
+  assert.ok(Object.keys(require('glocon/' + entry)).length);
 }`;
     writeFileSync(join(cwd, 'smoke.mjs'), smoke);
     execFileSync(manager === 'bun' ? 'bun' : process.execPath, ['smoke.mjs'], { cwd, stdio: 'inherit' });

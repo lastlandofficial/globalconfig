@@ -2,7 +2,7 @@
 
 All root exports are also available from the corresponding subpath. Invalid runtime configuration throws `TypeError` or `RangeError`; async currency adapters propagate provider errors. Returned money amounts are decimal strings.
 
-## Country API (`globalconfig/countries`)
+## Country API (`glocon/countries`)
 
 | Export | Purpose |
 | --- | --- |
@@ -13,7 +13,7 @@ All root exports are also available from the corresponding subpath. Invalid runt
 | `currencyCode(string)` | Validate INR/USD/JPY; currency codes are uppercase |
 | `currencyDigits(CurrencyCode)` | Return 2 for INR/USD, 0 for JPY |
 
-## Money API (`globalconfig/currency`)
+## Money API (`glocon/currency`)
 
 | Export | Purpose |
 | --- | --- |
@@ -25,7 +25,7 @@ All root exports are also available from the corresponding subpath. Invalid runt
 
 `ExchangeRates` is `{ base, rates, asOf, source }`. A base quote may be omitted; if supplied it must equal 1. All supplied quotes must be positive and supported. Cross rate = `targetQuote / sourceQuote`. Same-currency conversions use rate 1. Monetary input supports strings or numbers; use strings for exact values. Freshness boundaries are inclusive: an age equal to `maxAgeMs` passes.
 
-## Time API (`globalconfig/time`)
+## Time API (`glocon/time`)
 
 | Export | Purpose |
 | --- | --- |
@@ -36,7 +36,7 @@ All root exports are also available from the corresponding subpath. Invalid runt
 
 Conversion results contain `instant`, `local`, `timeZone`, `offset`, `zoned`, and `epochMilliseconds`. ISO string results preserve nanoseconds; epoch milliseconds and display formatting have millisecond resolution. `disambiguation` defaults to `reject`. No time zone is silently chosen for the USA.
 
-## Tax API (`globalconfig/tax`)
+## Tax API (`glocon/tax`)
 
 `calculateTax` requires one of these shapes, plus `amount`, optional `inclusive`, and optional `rounding`:
 
@@ -52,7 +52,7 @@ Conversion results contain `instant`, `local`, `timeZone`, `offset`, `zoned`, an
 `createTaxManager(initialRules?)` exposes `register(rule)`, `list()`, `getRate(id, on)`, `calculate(options)`, and `progressive(options)`. Rules have unique IDs, source references, a country, a percentage rate, inclusive `effectiveFrom`, and optional exclusive `effectiveTo`. Dates must be valid `YYYY-MM-DD`. `getRate` rejects missing/out-of-period rules; it does not automatically apply a returned rule to a calculation.
 
 ```ts
-import { calculateProgressiveTax } from 'globalconfig/tax';
+import { calculateProgressiveTax } from 'glocon/tax';
 
 // Fictional marginal schedule, not a country's statutory income tax table.
 calculateProgressiveTax({
@@ -68,7 +68,7 @@ calculateProgressiveTax({
 
 The progressive calculation rounds only the final sum. `breakdown[].unroundedTax` preserves each bracket's unrounded amount; those fields are not independently rounded invoice components. Taxable income must use whole currency minor units.
 
-## Laws API (`globalconfig/laws`)
+## Laws API (`glocon/laws`)
 
 `createLawsManager({ rules?, records? }?)` exposes:
 
@@ -79,19 +79,32 @@ The progressive calculation rounds only the final sum. `breakdown[].unroundedTax
 | `assess({ country, facts?, on? })` | Produce a dated review report; omitted date uses UTC today |
 | `record({ ruleId, controlId, status, note, updatedAt })` | Update a control's latest status |
 | `exportRecords()` | Return records suitable for JSON persistence |
+| `plan({ country, facts?, on? })` | Get deduplicated questions, source-linked implementation tasks, source-review flags, and recorded progress |
 
 Facts: `collectsPersonalData`, `servesChildrenUnder13`, `ccpaApplies`, `sellsTaxableItems`. Each is boolean or omitted. An explicit false fact takes precedence over missing facts. Controls do not disappear when facts are missing or false. Review statuses: `todo`, `in-progress`, `done`, `not-applicable`; the latter two need evidence/reason notes. Unknown rules, controls, topics, and facts fail validation.
 
 `LawRule` carries `id`, `country`, `title`, `topic`, `jurisdiction`, `summary`, `scope`, `source`, `reviewedOn`, optional `effectiveFrom` / `effectiveTo`, `timing`, `when` (fact keys combined with AND), and `controls` (unique IDs/titles). Supplied rules replace the built-in catalog. Registering a rule copies its arrays so later caller mutations do not affect the manager. To restore records for custom rules, supply those rules again.
 
-## Country-bound client (`globalconfig`)
+`LawControl` also accepts optional `implementation` and `evidence` string arrays, and an optional HTTPS `source` overriding the rule link. These are implementation suggestions and review artifacts. `appFacts` exposes the question and help text for each supported `AppFact`.
 
-`createGlobalConfig({ country, locale?, timeZone? })` exposes:
+`plan` returns `{ country, on, scope, questions, tasks, sourcesToReview, progress }`:
+
+- Questions contain `fact`, `question`, `help`, `ruleIds`, and `sources`.
+- Tasks contain rule/control IDs, titles, topic, jurisdiction, scope, applicability, timing notes, source and review date, implementation/evidence suggestions, status, and the saved record or `null`.
+- Rules with a false condition or an expired declared period are excluded from the plan. Upcoming and undecided rules remain explicitly labelled. Use `assess` to inspect all rule decisions.
+- Progress counts `total`, `todo`, `inProgress`, `done`, and `notApplicable`. Source-review requirements remain independent of progress.
+
+## Country-bound client (`glocon`)
+
+`createGlobalConfig('IN')` or `createGlobalConfig({ country, locale?, timeZone?, facts?, records? })` exposes:
 
 - `country` and `locale` metadata.
 - `currency.format(amount, options?)` with the country's currency and locale; `currency.convert(options)` sets the source currency to the country currency and requires a destination.
+- `currency.toMinorUnits(amount, rounding?)` and `currency.fromMinorUnits(bigintOrIntegerString)` use the country's currency precision.
 - `time.convert(instant, to?)` and `time.format(instant, timeZone?)` default to the configured zone. `time.fromLocal(local, { to, disambiguation? })` treats the configured zone as the source.
-- `tax` manager methods plus the country tax profile. `tax.calculate` keeps the discriminated `country` input and rejects a different country, preserving TypeScript's country-specific required fields.
-- `laws` manager methods with `list` and `assess` bound to the country. Each client owns independent in-memory progress.
+- `tax` manager methods plus the country tax profile. `tax.calculate` fills in `country`; an explicit matching country remains accepted. Known literal country codes/names preserve the country-specific required fields in TypeScript. Mismatched countries are rejected at runtime too.
+- `laws` manager methods with `list`, `assess`, and `plan` bound to the country. Saved facts are copied at creation; per-call facts override individual saved answers without changing defaults. Supplied records restore independent in-memory review progress.
+
+Public types include `GlobalConfigOptions`, `GlobalConfig<CountryCode>`, `CountryTaxOptions<CountryCode>`, and `CountryCodeFor<string>`. Known unpadded literal codes and aliases are resolved for autocomplete; dynamically loaded country strings use the broader country union and runtime validation. The standalone `calculateTax` continues to require the discriminating country field.
 
 Country-bound time operations defer the missing-US-zone error until a zone is actually needed. This allows currency or tax clients to be used without an arbitrary US time-zone default.
