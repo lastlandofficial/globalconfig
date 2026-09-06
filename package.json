@@ -1,0 +1,38 @@
+{
+  "name": "globalconfig",
+  "version": "0.1.0",
+  "description": "Country configuration, currency and time conversion, tax calculations, and legal checklists for global apps. India, USA, and Japan first.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }, "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" } },
+    "./countries": { "import": { "types": "./dist/countries.d.ts", "default": "./dist/countries.js" }, "require": { "types": "./dist/countries.d.cts", "default": "./dist/countries.cjs" } },
+    "./currency": { "import": { "types": "./dist/currency.d.ts", "default": "./dist/currency.js" }, "require": { "types": "./dist/currency.d.cts", "default": "./dist/currency.cjs" } },
+    "./time": { "import": { "types": "./dist/time.d.ts", "default": "./dist/time.js" }, "require": { "types": "./dist/time.d.cts", "default": "./dist/time.cjs" } },
+    "./tax": { "import": { "types": "./dist/tax.d.ts", "default": "./dist/tax.js" }, "require": { "types": "./dist/tax.d.cts", "default": "./dist/tax.cjs" } },
+    "./laws": { "import": { "types": "./dist/laws.d.ts", "default": "./dist/laws.js" }, "require": { "types": "./dist/laws.d.cts", "default": "./dist/laws.cjs" } },
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "README.md", "LICENSE", "docs"],
+  "sideEffects": false,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "check": "npm run typecheck && npm test && node scripts/check-package.mjs",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run check",
+    "example": "npm run build && node examples/quickstart.mjs"
+  },
+  "repository": { "type": "git", "url": "git+https://github.com/lastlandofficial/globalconfig.git" },
+  "homepage": "https://github.com/lastlandofficial/globalconfig#readme",
+  "bugs": { "url": "https://github.com/lastlandofficial/globalconfig/issues" },
+  "keywords": ["globalconfig", "internationalization", "i18n", "currency", "timezone", "tax", "gst", "compliance", "india", "usa", "japan", "typescript"],
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "dependencies": { "@js-temporal/polyfill": "^0.5.1", "decimal.js": "^10.6.0" },
+  "devDependencies": { "tsup": "^8.5.1", "typescript": "~5.9.3" }
+}
