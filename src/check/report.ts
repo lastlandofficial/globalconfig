@@ -17,7 +17,7 @@ export interface CheckReport {
   summary: { completed: number; incomplete: number; new: number; existing: number; groups: number };
   exitCode: 0 | 1 | 2;
 }
-export interface BaselineEntry { key: string; caseId: string; reason: string; reviewedOn: string; expires: string }
+export interface BaselineEntry { key: string; caseId: string; ruleId?: string; reason: string; reviewedOn: string; expires: string }
 export interface Baseline { version: 1; entries: BaselineEntry[] }
 export const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : record(value) ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
@@ -33,7 +33,8 @@ export async function readBaseline(dir: string): Promise<Baseline> {
   const seen = new Set<string>();
   for (const entry of value.entries) {
     if (!record(entry) || typeof entry.key !== 'string' || !/^[a-f0-9]{64}$/.test(entry.key) || typeof entry.caseId !== 'string' || !/^[a-f0-9]{64}$/.test(entry.caseId) || typeof entry.reason !== 'string' || !entry.reason.trim() || typeof entry.expires !== 'string' || !validDate(entry.expires) || typeof entry.reviewedOn !== 'string' || !validDate(entry.reviewedOn) || entry.expires <= entry.reviewedOn || seen.has(entry.key)) throw new Error('Baseline entries need unique keys, case IDs, review reasons, and valid review/expiry dates.');
-    keys(entry, ['key', 'caseId', 'reason', 'reviewedOn', 'expires'], 'Baseline entry');
+    keys(entry, ['key', 'caseId', 'ruleId', 'reason', 'reviewedOn', 'expires'], 'Baseline entry');
+    if (entry.ruleId !== undefined && (typeof entry.ruleId !== 'string' || !entry.ruleId.trim())) throw new Error('Baseline ruleId must be a non-empty string.');
     seen.add(entry.key);
   }
   return value as unknown as Baseline;
@@ -48,13 +49,22 @@ export function makeReport(config: CheckConfig, cases: CheckCase[], baseline: Ba
   }
   const completedIds = new Set(cases.filter(c => c.status === 'completed').map(c => c.id));
   const observed = new Set(issues.map(i => i.key));
+  for (const result of cases) for (const { finding } of result.report?.suppressed ?? []) {
+    for (const severity of ['error', 'warning', 'info']) observed.add(hash([result.id, finding.ruleId, finding.target, severity]));
+  }
+  const resolved = baseline.entries.filter(entry => {
+    const result = cases.find(c => c.id === entry.caseId);
+    return completedIds.has(entry.caseId) && entry.ruleId && result?.report?.coverage.rules.includes(entry.ruleId)
+      && !result.report.coverage.limitations.some(limit => /^(Inline suppression|DOM collection truncated)/.test(limit))
+      && !observed.has(entry.key);
+  }).length;
   const rank: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
   const threshold = config.failOn ?? 'error';
   const incomplete = cases.filter(c => c.status !== 'completed').length;
   const failing = threshold !== 'none' && issues.some(i => !i.existing && rank[i.severity] <= rank[threshold]);
   return {
     schemaVersion: 1, createdAt: now.toISOString(), configHash: configHash(config), cases, issues,
-    baseline: { tracked: baseline.entries.length, resolved: baseline.entries.filter(e => completedIds.has(e.caseId) && !observed.has(e.key)).length, expired: baseline.entries.filter(e => e.expires <= today || e.reviewedOn > today).length },
+    baseline: { tracked: baseline.entries.length, resolved, expired: baseline.entries.filter(e => e.expires <= today || e.reviewedOn > today).length },
     summary: { completed: cases.length - incomplete, incomplete, new: issues.filter(i => !i.existing).length, existing: issues.filter(i => i.existing).length, groups: groupIssues(issues).size },
     exitCode: incomplete ? 2 : failing ? 1 : 0,
   };
@@ -109,7 +119,7 @@ export async function saveBaseline(dir: string, config: CheckConfig, reason: str
   if (!validDate(expiry) || expiry <= today) throw new Error('--expires must be a future YYYY-MM-DD date.');
   if (report.schemaVersion !== 1 || report.configHash !== configHash(config) || report.summary.incomplete || report.cases.length !== config.pages.length * config.viewports.length || report.cases.some(c => c.status !== 'completed') || !Array.isArray(report.issues)) throw new Error('Run glocon check successfully across every configured page and viewport before accepting a baseline.');
   if (report.createdAt.slice(0, 10) !== today) throw new Error('Run glocon check again today before accepting a baseline.');
-  const entries = [...new Map(report.issues.map(i => [i.key, { key: i.key, caseId: i.caseId, reason, reviewedOn: today, expires: expiry }])).values()];
+  const entries = [...new Map(report.issues.map(i => [i.key, { key: i.key, caseId: i.caseId, ruleId: i.ruleId, reason, reviewedOn: today, expires: expiry }])).values()];
   await writeJSON(resolve(dir, 'glocon.baseline.json'), { version: 1, entries });
   return entries.length;
 }

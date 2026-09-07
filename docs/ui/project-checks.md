@@ -133,7 +133,7 @@ Choose a future expiry date. Omitting `--expires` uses 30 days. Commit `glocon.b
 
 Acceptance requires a complete run from the current UTC day with the same configuration. A check that exits 1 because of findings is eligible; a run with incomplete pages is not. Accepting replaces the baseline with the reviewed findings in that run, including existing findings; it is an explicit renewed review.
 
-Baseline identity includes page, viewport dimensions and color scheme, auth requirement, rule, target, and severity. A severity change or new target is new work. Baselines track issue identity, not every possible change in measured evidence. Expired entries become new findings again; old findings remain visible while valid. Findings absent from completed cases are reported as resolved; skipped or removed cases are not assumed resolved. Checks never silently refresh a baseline.
+Baseline identity includes page, viewport dimensions and color scheme, auth requirement, rule, target, and severity. A severity change or new target is new work. Baselines track issue identity, not every possible change in measured evidence. Expired entries become new findings again; old findings remain visible while valid. Findings absent from completed cases are reported as resolved only when their rule ran. Suppressed findings, disabled rules, truncated or inline-suppressed collection, and skipped or removed cases are not assumed resolved. Checks never silently refresh a baseline.
 
 ## Programmatic use (Node.js)
 

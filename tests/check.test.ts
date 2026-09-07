@@ -43,6 +43,25 @@ describe('reviewed baselines and reports', () => {
     const report = makeReport({ ...config, failOn: 'none' }, [result], baseline);
     expect(report.exitCode).toBe(2); expect(report.baseline.resolved).toBe(0);
   });
+  it('does not call suppressed findings or disabled rules resolved', () => {
+    const result = completed();
+    const issue = makeReport(config, [result], { version: 1, entries: [] }).issues[0]!;
+    const baseline: Baseline = { version: 1, entries: [{ key: issue.key, caseId: issue.caseId, ruleId: issue.ruleId, reason: 'Reviewed', reviewedOn: '2026-09-01', expires: '2099-01-01' }] };
+    const finding = result.report!.findings[0]!;
+    result.report!.findings = [];
+    result.report!.suppressed = [{ finding, reason: 'Exception' }];
+    expect(makeReport(config, [result], baseline).baseline.resolved).toBe(0);
+    result.report!.suppressed = [];
+    const rules = result.report!.coverage.rules;
+    result.report!.coverage.rules = [];
+    expect(makeReport(config, [result], baseline).baseline.resolved).toBe(0);
+    result.report!.coverage.rules = rules;
+    expect(makeReport(config, [result], baseline).baseline.resolved).toBe(1);
+    result.report!.coverage.limitations.push('Inline suppression at #form: layout/overflow (custom rules only).');
+    expect(makeReport(config, [result], baseline).baseline.resolved).toBe(0);
+    result.report!.coverage.limitations = ['DOM collection truncated to 10 of 100 elements.'];
+    expect(makeReport(config, [result], baseline).baseline.resolved).toBe(0);
+  });
   it('groups occurrences and escapes page-controlled HTML and links', () => {
     const a = completed(); const b = completed(); b.id = hash('desktop'); b.viewport = { name: 'desktop', width: 1280, height: 800 };
     a.report!.findings[0]!.message = '<script>alert(1)</script>';
