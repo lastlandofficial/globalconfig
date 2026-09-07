@@ -1,0 +1,1 @@
+export default function Login() { return <main><h1>Sign in to the demo</h1><p>This fixture uses a fixed test session, not production authentication.</p><form action="/api/session" method="POST"><button style={{padding:12,minHeight:44}} type="submit">Use test account</button></form></main>; }

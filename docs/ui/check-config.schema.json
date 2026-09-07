@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.4.0/docs/ui/check-config.schema.json",
+  "title": "glocon project checks",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "baseURL",
+    "pages",
+    "viewports"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "const": 1
+    },
+    "baseURL": {
+      "type": "string",
+      "minLength": 1,
+      "format": "uri",
+      "description": "HTTP(S) origin with no path, credentials, query, or fragment."
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^/[^/]*",
+                "description": "A path on baseURL. Supply real examples for dynamic routes."
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Non-sensitive display name for this page."
+              },
+              "auth": {
+                "type": "boolean",
+                "description": "Require auth.storageState and verify auth.readySelector before auditing."
+              },
+              "readySelector": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Wait for this CSS selector to be visible before auditing."
+              }
+            }
+          }
+        ]
+      }
+    },
+    "viewports": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "width",
+          "height"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "colorScheme": {
+            "enum": [
+              "light",
+              "dark"
+            ]
+          }
+        }
+      }
+    },
+    "webServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command"
+      ],
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Trusted local command to start the application."
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "reuseExistingServer": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "storageState",
+        "readySelector"
+      ],
+      "properties": {
+        "storageState": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to a gitignored Playwright test storage-state file."
+        },
+        "readySelector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Visible marker specific to a successfully authenticated page."
+        },
+        "loginPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "setupCommand": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Existing test-login command, run once after the app is ready."
+        }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readySelector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "maxElements": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000
+        },
+        "accessibility": {
+          "type": "boolean"
+        },
+        "rules": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": [
+              "error",
+              "warning",
+              "info",
+              "off"
+            ]
+          }
+        },
+        "spacingScale": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "spacingTolerance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "targetSize": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "suppressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ruleId",
+              "reason"
+            ],
+            "properties": {
+              "ruleId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "failOn": {
+      "enum": [
+        "error",
+        "warning",
+        "info",
+        "none"
+      ],
+      "default": "error"
+    },
+    "screenshots": {
+      "type": "boolean",
+      "default": true,
+      "description": "Save local highlighted viewport screenshots. They may contain app content."
+    }
+  }
+}

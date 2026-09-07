@@ -1,7 +1,7 @@
 {
   "name": "glocon",
-  "version": "0.3.0",
-  "description": "globalconfig: UI components and audits, framework integrations, country configuration, currency, time, and government-source workflows for JavaScript and TypeScript.",
+  "version": "0.4.0",
+  "description": "globalconfig: one-command project UI checks, test-login reuse, reviewed baselines, React components, and country utilities for JavaScript and TypeScript.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -124,7 +124,18 @@
     },
     "./styles.css": "./styles/glocon.css",
     "./tokens.css": "./styles/tokens.css",
-    "./report.schema.json": "./docs/ui/report.schema.json"
+    "./report.schema.json": "./docs/ui/report.schema.json",
+    "./check": {
+      "import": {
+        "types": "./dist/check/index.d.ts",
+        "default": "./dist/check/index.js"
+      },
+      "require": {
+        "types": "./dist/check/index.d.cts",
+        "default": "./dist/check/index.cjs"
+      }
+    },
+    "./check-config.schema.json": "./docs/ui/check-config.schema.json"
   },
   "files": [
     "dist",
@@ -154,7 +165,8 @@
     "example": "npm run build && node examples/quickstart.mjs",
     "test:browser": "playwright test",
     "test:ui-package": "node scripts/ui-package-smoke.mjs",
-    "check:all": "npm run check && npm run test:browser && npm run test:ui-package"
+    "check:all": "npm run check && npm run test:browser && npm run test:ui-package",
+    "test:frameworks": "npm run build && node scripts/check-frameworks.mjs"
   },
   "repository": {
     "type": "git",

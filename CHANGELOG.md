@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Add framework-aware `glocon init --ui`: dependency/browser installation, Next static-route suggestions, safe repeat setup, and generated CI.
+- Add `glocon check` with automatic server lifecycle, isolated page/viewport checks, local HTML/JSON reports, and highlighted screenshots.
+- Reuse Playwright storage state and test setup commands; add interactive `glocon login` and explicit incomplete authentication coverage.
+- Add reviewed, expiring baselines with new/regressed finding detection and identical local/CI thresholds.
+- Add the Node-only `glocon/check` API and clean-install React/Vite and Next.js workflow verification.
+- Preserve all existing country, component, standalone audit, and configuration APIs. No countries added.
+
 ## 0.3.0
 
 - Broaden globalconfig into a JavaScript and TypeScript developer toolkit.

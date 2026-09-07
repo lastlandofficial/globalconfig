@@ -2,6 +2,11 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig([
   {
+    entry: { 'check/index': 'src/check/index.ts', 'check/cli': 'src/check/cli.ts' },
+    format: ['esm', 'cjs'], dts: true, target: 'node20', platform: 'node',
+    splitting: true, sourcemap: true, external: ['playwright', '@playwright/test', '@axe-core/playwright'],
+  },
+  {
     entry: ['src/index.ts', 'src/countries.ts', 'src/currency.ts', 'src/time.ts', 'src/tax.ts', 'src/laws.ts'],
     format: ['esm', 'cjs'], target: 'es2022', platform: 'neutral', dts: true,
     clean: false, sourcemap: true, splitting: true, treeshake: true,

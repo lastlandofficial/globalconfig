@@ -14,7 +14,11 @@ function help() {
   console.log(`globalconfig (glocon ${manifest.version})
 
 Usage:
-  glocon ui init                      Set up UI checks (no country required)
+  glocon init --ui                    Set up project UI checks and CI
+  glocon check                        Start the app and check pages and screen sizes
+  glocon login                        Save a test login for protected pages
+  glocon baseline --reason <text>      Record reviewed existing findings
+  glocon ui init                      Write a standalone audit configuration
   glocon audit <url>                   Check a running app for UI issues
   glocon doctor [directory]            Detect frameworks and explain integrations
   glocon rules                        List UI audit rules
@@ -183,7 +187,15 @@ function plan(dir, values) {
 }
 
 const uiCommand = process.argv[2];
-if (['ui', 'audit', 'doctor', 'rules'].includes(uiCommand)) {
+if (['check', 'baseline', 'login'].includes(uiCommand) || (uiCommand === 'init' && process.argv.includes('--ui'))) {
+  try {
+    const { runCheckCommand } = await import('../dist/check/cli.js');
+    await runCheckCommand(process.argv.slice(2), manifest.version);
+  } catch (error) {
+    console.error(`glocon: ${error.message}`);
+    process.exitCode = 2;
+  }
+} else if (['ui', 'audit', 'doctor', 'rules'].includes(uiCommand)) {
   try {
     const { runUICommand } = await import('../dist/ui/cli/index.js');
     await runUICommand(process.argv.slice(uiCommand === 'ui' ? 3 : 2), manifest.version);

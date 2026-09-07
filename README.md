@@ -8,6 +8,7 @@ glocon brings UI components, UI audits, state contracts, framework integrations,
 | --- | --- |
 | Accessible React primitives and async views | `glocon/react` + `glocon/styles.css` |
 | UI snapshots, rules, and state contracts | `glocon/ui` |
+| Set up and run project checks | `glocon init --ui` + `glocon check` |
 | Check a running web app | `glocon audit <url>` |
 | Audit existing authenticated browser tests | `glocon/playwright` |
 | DOM layout checks | `glocon/browser` |
@@ -35,13 +36,30 @@ These package managers share the npm registry; there is no separate Bun or pnpm 
 
 Prebuilt tarballs are also available from [GitHub releases](https://github.com/lastlandofficial/globalconfig/releases). See [publishing](docs/publishing.md) for the release workflow.
 
-## Start with UI
+## Check your app with one command
 
 ```sh
-npm install glocon
-npx glocon ui init
-npx glocon doctor
+npx glocon init --ui
+npx glocon check
 ```
+
+**New in 0.4.0:** setup detects Next.js or Vite and your package manager, installs missing tooling and Chromium, and generates project checks and CI. The check command starts your app, audits configured pages at phone and desktop widths, and writes a readable HTML report with highlighted screenshots and fix guidance.
+
+- Reuse your existing Playwright test login, or capture a test session with `glocon login`.
+- Review existing issues with `glocon baseline --reason "Tracked in UI-42"`; subsequent checks flag new regressions. Reviews expire unless renewed explicitly.
+- Keep local and CI checks consistent. Failed logins and incomplete pages never count as passes.
+- Re-running setup preserves your config, scripts, and edited workflows.
+
+```sh
+npx glocon init --ui --pages /,/settings --url http://localhost:3000
+npx glocon check --json
+```
+
+Open `.glocon/report.html` after the run. Reports and test sessions stay in the gitignored `.glocon/` directory; screenshots may contain application content. [Read the project-check workflow](docs/ui/project-checks.md) for protected pages, configuration, CI, baseline review, and limits.
+
+You can also install the command globally with `npm install -g glocon`. Project checks resolve Playwright from your application directory.
+
+## Use the components or audit an already-running page
 
 ```tsx
 import { Button, Field, Stack } from 'glocon/react';
@@ -55,17 +73,16 @@ export function ProfileForm() {
 }
 ```
 
-React is an optional peer dependency. For browser audits, install the optional runner in the same project:
+React is an optional peer dependency. The existing standalone auditor remains available:
 
 ```sh
+npm install glocon
 npm install -D playwright
 npx playwright install chromium
 npx glocon audit http://localhost:3000 --json
 ```
 
-You can also install the command globally with `npm install -g glocon`. For browser audits we recommend the local `npx glocon` command, so it resolves your project's Playwright installation. A global CLI requires Playwright in its own installation environment (`npm install -g playwright`).
-
-`glocon ui init` creates `glocon.ui.json` without overwriting an existing file. Use `glocon audit --help` for viewport, readiness, configuration, and CI failure thresholds. UI features require no country configuration. See the [UI guide](docs/ui/README.md), [framework integrations](docs/ui/integrations.md), and [rule reference](docs/ui/rules.md).
+`glocon ui init` still creates `glocon.ui.json` for standalone audits. Project checks use `glocon.check.json`. UI features require no country configuration. See the [UI guide](docs/ui/README.md), [framework integrations](docs/ui/integrations.md), and [rule reference](docs/ui/rules.md).
 
 ## Set up country utilities and government-source workflows
 

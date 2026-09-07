@@ -11,12 +11,21 @@
 - Measured-node native adapter.
 - Research rationale, integration examples, automated tests, and CI.
 
-## Next: validate the core workflow
+## Shipped in 0.4.0
+
+- Framework-aware setup, dependency/browser installation, and generated CI.
+- Managed app startup and checks across configured pages, screen sizes, and color schemes.
+- Test-session reuse, interactive capture, and explicit expired-login coverage.
+- Reviewed baselines with reasons, expiry, and new-regression detection.
+- Grouped HTML/JSON reports and highlighted local screenshots.
+- Clean-install React/Vite and Next.js framework fixtures.
+
+## Next: deepen verified workflows
 
 - Trial on real React, Angular, Electron, and native projects; measure false positives and usefulness.
 - Interaction scenarios for keyboard navigation, focus restoration, retained form values, and recovery.
-- Multiple viewport/color-scheme/locale scenario matrices with stable report aggregation.
-- Baselines with expiry/reason tracking and reports for newly introduced issues.
+- Locale and explicit interaction-state matrices beyond the shipped viewport/color-scheme checks.
+- Trial baseline usefulness and false-positive rates in production applications.
 - Source locations from framework metadata, without pretending DOM selectors identify source lines.
 - SARIF and editor integration after source mapping is reliable.
 

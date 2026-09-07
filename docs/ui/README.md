@@ -1,10 +1,12 @@
-# glocon
+# glocon UI
+
+For automatic app startup, page/viewport checks, test-login reuse, reports, and baselines, start with the [0.4.0 project-check workflow](project-checks.md). The standalone APIs below remain available.
 
 **Turn the testable parts of UI and UX into code.**
 
 `glocon` is a testing library and a small UI library for JavaScript and TypeScript developers. Audit an existing app, detect measurable inconsistencies, declare missing-state requirements, and build common controls with better defaults. Findings explain **what happened, where, why it matters, and what to change**.
 
-Version **0.3.0**. MIT licensed. Local execution. No account, telemetry, API key, or LLM required.
+Version **0.4.0**. MIT licensed. Local execution. No account, telemetry, API key, or LLM required.
 
 ```sh
 npm install glocon
@@ -176,7 +178,7 @@ Spacing is not checked unless you supply a scale. Component drift is checked onl
 
 At least three peers and a strict majority are required. This is a suggestion to investigate, not a requirement that everything look the same. See [all rules and limitations](rules.md).
 
-## Framework support in 0.3.0
+## Framework support
 
 | Environment | Available today |
 | --- | --- |
