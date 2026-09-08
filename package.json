@@ -1,6 +1,6 @@
 {
   "name": "glocon",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "globalconfig: one-command project UI checks, test-login reuse, reviewed baselines, React components, and country utilities for JavaScript and TypeScript.",
   "license": "MIT",
   "type": "module",

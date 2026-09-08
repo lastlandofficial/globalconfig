@@ -1,0 +1,16 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Scenario fixture</title><meta name="viewport" content="width=device-width"><style>body{font:16px system-ui;color:#111;background:white;margin:20px}button,input{min-height:44px;padding:8px}label{display:block}main{max-width:100%}</style></head><body><main><h1>Create project</h1><form><label for="name">Project name</label><input id="name" name="name"><button id="save">Save project</button><button id="retry" type="button" hidden>Try again</button><p id="status" role="status"></p></form></main><script>
+const input = document.querySelector('#name'), save = document.querySelector('#save'), retry = document.querySelector('#retry'), status = document.querySelector('#status');
+async function submit() {
+  save.disabled = true; retry.hidden = true; status.textContent = 'Saving…';
+  try {
+    const response = await fetch('/api/projects?source=form', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({ name: input.value }) });
+    if (!response.ok) throw Error('Unavailable');
+    const result = await response.json();
+    status.textContent = result.message;
+    if (result.broken) { const button = document.createElement('button'); button.id = 'broken-result'; document.querySelector('main').append(button); }
+  } catch { status.textContent = 'Could not save. Your name is kept.'; retry.hidden = false; retry.focus(); }
+  finally { save.disabled = false; }
+}
+document.querySelector('form').addEventListener('submit', event => { event.preventDefault(); submit(); });
+retry.addEventListener('click', submit);
+</script></body></html>

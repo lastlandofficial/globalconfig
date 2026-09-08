@@ -1,6 +1,6 @@
 # Project checks
 
-Available in glocon 0.4.0. Set up once, then check your running application with one command:
+Available since glocon 0.4.0; interaction scenarios added in 0.5.0. Set up once, then check your running application with one command:
 
 ```sh
 npx glocon init --ui
@@ -25,7 +25,7 @@ For unknown frameworks, provide `--url` or answer the terminal prompt. An app wi
 
 Setup preserves application scripts, existing configuration, and existing Playwright tests. It adds `glocon:check` only if that script name is free. Re-running setup retries installation and refreshes an untouched generated CI file. A user-edited workflow is preserved. Existing `glocon.check.json` is never reset; edit it directly to change pages or startup settings. Use the same flags, such as `--no-ci`, when repeating setup.
 
-At setup time, static Next.js App Router and Pages Router pages are suggested, including ordinary route groups. Dynamic, private, parallel, and interception route paths are excluded; provide representative URLs explicitly. Vite starts with `/` because client routers are application-specific. Routes are not crawled and no app actions are clicked automatically by a check.
+At setup time, static Next.js App Router and Pages Router pages are suggested, including ordinary route groups. Dynamic, private, parallel, and interception route paths are excluded; provide representative URLs explicitly. Vite starts with `/` because client routers are application-specific. Routes are not crawled. Checks perform app actions only when you configure scenario steps.
 
 In a monorepo, run setup in the app directory and use the repository's existing dependency/workspace policy. Generated CI is limited to repository-root applications; add `glocon check` with your app's working directory to existing monorepo CI. Setup does not rewrite an existing Playwright configuration or infer its executable setup hooks.
 
@@ -159,3 +159,7 @@ The `glocon/check` subpath is Node-only. React and browser bundles should contin
 The test suite covers setup preservation, route selection, configuration validation, baseline review/expiry, report escaping, authenticated and expired sessions, server reuse, startup failure, cancellation, new regressions, and browser-rendered HTML reports.
 
 `npm run test:frameworks` installs the packed package into fresh React/Vite and Next.js demo applications, executes normal setup twice, starts the apps through glocon, tests their pages across two widths, accepts baselines, introduces defects, and verifies regression failures. The Next.js fixture includes an actual browser test-login flow and expired-session check. These are framework fixtures, not a claim that every production framework configuration has been verified. Their demo login is not production authentication code.
+
+## Interaction scenarios (0.5.0)
+
+Add named `scenarios` to page entries to exercise loading, error, retry, and success flows before auditing. Run `glocon check --example` for a starter page entry. [Read the scenario guide](scenarios.md) for actions, expectations, API mocks, isolation, and baseline behavior. Existing page-only configurations need no migration.

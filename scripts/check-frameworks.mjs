@@ -37,6 +37,10 @@ try {
       config.auth = { storageState: '.glocon/auth.json', readySelector: '#signed-in', loginPath: '/login', setupCommand: 'node auth-setup.mjs' };
       await writeFile(join(dir, 'auth-setup.mjs'), `import { chromium } from 'playwright'; const browser = await chromium.launch(); try { const context = await browser.newContext(); const page = await context.newPage(); await page.goto(${JSON.stringify(config.baseURL + '/login')}); await page.getByRole('button', {name:'Use test account'}).click(); await page.locator('#signed-in').waitFor(); await context.storageState({path:'.glocon/auth.json'}); } finally { await browser.close(); }`);
     }
+    const example = JSON.parse((await exec(process.execPath, [cli, 'check', '--example'], { cwd: dir })).stdout);
+    example.path = '/scenarios';
+    config.pages.push(example);
+    const expectedChecks = config.pages.reduce((count, page) => count + (page.scenarios?.length ?? 1), 0) * 2;
     await writeFile(configPath, JSON.stringify(config, null, 2));
     const execute = async () => {
       try { const r = await exec(process.execPath, [cli, 'check', '--json'], { cwd: dir, timeout: 180000, maxBuffer: 8e6, env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1' } }); return { code: 0, report: JSON.parse(r.stdout), stderr: r.stderr }; }
@@ -44,7 +48,9 @@ try {
     };
     const first = await execute();
     assert.equal(first.report.summary.incomplete, 0, JSON.stringify(first.report.cases.map(c => ({page:c.page,status:c.status,message:c.message}))) + '\n' + first.stderr);
-    assert.equal(first.report.summary.completed, config.pages.length * 2);
+    assert.equal(first.report.summary.completed, expectedChecks);
+    assert.equal(first.report.cases.filter(c => c.scenario).length, 8);
+    assert.ok(first.report.cases.filter(c => c.scenario).every(c => c.steps.every(step => step.status === 'passed')));
     const firstMinutes = (Date.now() - began) / 60000;
     await exec(process.execPath, [cli, 'baseline', '--reason', 'Reviewed framework fixture findings'], { cwd: dir });
     assert.equal((await execute()).code, 0, 'Baseline should permit existing findings');
@@ -61,8 +67,8 @@ try {
       const expired = await execute(); assert.equal(expired.code, 2); assert.equal(expired.report.cases.filter(c => c.status === 'auth-required').length, 2);
     }
     assert.match(await readFile(join(dir, '.github/workflows/glocon.yml'), 'utf8'), /npm ci/);
-    results.push({ framework, firstReportMinutes: Number(firstMinutes.toFixed(2)), checks: first.report.summary.completed, regressionDetected: true, authValidated: framework === 'next' });
-    console.log(`${framework}: setup/install, automatic startup, ${config.pages.length * 2} checks, baseline, new regression${framework === 'next' ? ', browser login and expired-session detection' : ''} passed (${firstMinutes.toFixed(2)} minutes to first report).`);
+    results.push({ framework, firstReportMinutes: Number(firstMinutes.toFixed(2)), checks: first.report.summary.completed, regressionDetected: true, interactionScenarios: 4, authValidated: framework === 'next' });
+    console.log(`${framework}: setup/install, automatic startup, ${expectedChecks} checks, baseline, new regression${framework === 'next' ? ', browser login and expired-session detection' : ''} passed (${firstMinutes.toFixed(2)} minutes to first report).`);
   }
   await writeFile('/tmp/glocon-framework-results.json', JSON.stringify(results, null, 2));
 } catch (error) { console.error(error); process.exitCode = 1; }

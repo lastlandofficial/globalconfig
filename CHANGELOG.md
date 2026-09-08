@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Check interaction states through `glocon check`: named scenarios support click, fill, key presses, and retrying assertions for visibility, focus, enabled state, exact text, and retained input values.
+- Make loading/error/retry/success checks repeatable with scoped browser API mocks, ordered responses, and requests held pending until scenario cleanup.
+- Run every scenario in an isolated browser context at each viewport. Failed steps and unused mock responses are incomplete checks, even when findings are ignored.
+- Show step outcomes and mock request counts in reports. Baselines include scenario behavior while preserving existing page-only identities.
+- Add `glocon check --example`, TypeScript types, editor schema, and a practical scenario guide. Verify the shipped examples in clean-installed React/Vite and Next.js apps.
+
+
 ## 0.4.0
 
 - Add framework-aware `glocon init --ui`: dependency/browser installation, Next static-route suggestions, safe repeat setup, and generated CI.

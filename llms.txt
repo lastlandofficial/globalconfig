@@ -1,10 +1,13 @@
-# glocon 0.4.0
+# glocon 0.5.0
 
 globalconfig is the glocon toolkit for JavaScript and TypeScript: UI, framework integrations, country utilities, and government-source workflows. Authentication is roadmap scope, not a shipped provider. glocon turns measurable UI/UX requirements into tests. npm package: glocon.
 Repository: https://github.com/lastlandofficial/globalconfig
 
 ## Project workflow (0.4.0)
 Run glocon init --ui in an existing web app, then glocon check. Setup installs local tooling and Chromium; checks manage app startup. Config: glocon.check.json. Reports: .glocon/report.html and .glocon/report.json. Test-login reuse: auth.storageState, auth.readySelector, optional auth.setupCommand; glocon login captures a local test session. Baseline acceptance requires an explicit reason, a complete run from today, and future expiry. Incomplete pages always exit 2. Never treat skipped/unauthenticated pages as passed. Screenshots may contain app content and stay local; no automatic uploads. glocon/check is Node-only. See docs/ui/project-checks.md.
+
+## Interaction scenarios (0.5.0)
+Page entries accept scenarios: [{name, steps, mocks?, readySelector?}]. glocon check --example prints an editable page entry with four states. Actions: click, fill, press, expect. Expect exactly one state (visible/hidden/enabled/disabled/focused), text (exact innerText), or value. Mocks match same-origin browser fetch/XHR pathname/method, ignore query, consume responses in order and repeat the last. {pending:true} holds a loading request. Every response must be used; unmatched steps/mocks exit 2 and cannot be baselined. Each scenario and viewport has an isolated context; only its final state is audited. No automatic behavior discovery or backend verification. Scenario changes invalidate its baseline identity. See docs/ui/scenarios.md. Types: CheckScenario, CheckStep, CheckMock from glocon/check.
 
 ## Standalone workflow
 1. Start the project's app using its documented command.

@@ -43,7 +43,7 @@ npx glocon init --ui
 npx glocon check
 ```
 
-**New in 0.4.0:** setup detects Next.js or Vite and your package manager, installs missing tooling and Chromium, and generates project checks and CI. The check command starts your app, audits configured pages at phone and desktop widths, and writes a readable HTML report with highlighted screenshots and fix guidance.
+Setup detects Next.js or Vite and your package manager, installs missing tooling and Chromium, and generates project checks and CI. The check command starts your app, audits configured pages at phone and desktop widths, and writes a readable HTML report with highlighted screenshots and fix guidance.
 
 - Reuse your existing Playwright test login, or capture a test session with `glocon login`.
 - Review existing issues with `glocon baseline --reason "Tracked in UI-42"`; subsequent checks flag new regressions. Reviews expire unless renewed explicitly.
@@ -58,6 +58,16 @@ npx glocon check --json
 Open `.glocon/report.html` after the run. Reports and test sessions stay in the gitignored `.glocon/` directory; screenshots may contain application content. [Read the project-check workflow](docs/ui/project-checks.md) for protected pages, configuration, CI, baseline review, and limits.
 
 You can also install the command globally with `npm install -g glocon`. Project checks resolve Playwright from your application directory.
+
+## Check loading, errors, retries, and success
+
+**New in 0.5.0:** named interaction scenarios run through the same `glocon check` command. Click, fill, press keys, assert focus or retained input, then audit the resulting state at every screen size.
+
+```sh
+npx glocon check --example
+```
+
+Copy the printed page entry into your `glocon.check.json` pages array and adapt the selectors and API payloads. Optional API mocks make loading and retry flows repeatable. Reports show which steps passed; failed interactions and unused mocks are incomplete checks that cannot be baselined. [Scenario guide and retry example](docs/ui/scenarios.md).
 
 ## Use the components or audit an already-running page
 

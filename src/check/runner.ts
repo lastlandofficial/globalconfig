@@ -8,6 +8,8 @@ import { resolvePlaywright } from './setup';
 import { pageURL, validateCheckConfig, type CheckConfig } from './config';
 import { makeReport, readBaseline, writeJSON, renderCheckReport, caseId, type CheckCase, type CheckReport, type Baseline } from './report';
 
+import { installMocks, runSteps } from './scenarios';
+
 class AuthRequired extends Error {}
 const safeError = (error: unknown) => (error instanceof Error ? error.message : String(error)).replace(/https?:\/\/[^\s"'<>]+/g, value => { try { const url = new URL(value); return `${url.origin}${url.pathname}`; } catch { return '[URL]'; } });
 function signalScope(external?: AbortSignal) {
@@ -58,7 +60,8 @@ export async function runChecks(config: CheckConfig, options: RunCheckOptions = 
   const scope = signalScope(options.signal);
   const cases: CheckCase[] = [];
   const pages = config.pages.map(p => typeof p === 'string' ? { path: p } : p);
-  for (const page of pages) for (const viewport of config.viewports) cases.push({ id: caseId(page.path, viewport, page.auth ?? false), page: pageURL(page.path, config.baseURL).pathname, name: page.name ?? pageURL(page.path, config.baseURL).pathname, viewport, status: 'error', message: 'Not run.' });
+  const plans = pages.flatMap(entry => (entry.scenarios ?? [undefined]).flatMap(scenario => config.viewports.map(viewport => ({ entry, scenario, viewport }))));
+  for (const { entry, scenario, viewport } of plans) cases.push({ id: caseId(entry.path, viewport, entry.auth ?? false, scenario), page: pageURL(entry.path, config.baseURL).pathname, name: `${entry.name ?? pageURL(entry.path, config.baseURL).pathname}${scenario ? ` / ${scenario.name}` : ''}`, viewport, status: 'error', message: 'Not run.', ...(scenario ? { scenario: scenario.name, steps: scenario.steps.map(step => ({ action: step.action, selector: step.selector, status: 'not-run' as const })) } : {}) });
   const output = resolve(dir, '.glocon');
   let baseline: Baseline = { version: 1, entries: [] };
   let stopServer: () => Promise<void> = async () => {};
@@ -83,14 +86,15 @@ export async function runChecks(config: CheckConfig, options: RunCheckOptions = 
     scope.signal.throwIfAborted();
     browser = await playwright.chromium.launch();
     let index = 0;
-    for (const entry of pages) for (const viewport of config.viewports) {
+    for (const { entry, scenario, viewport } of plans) {
       const result = cases[index++]!;
       if (scope.signal.aborted) { result.message = 'Run interrupted.'; continue; }
       if (entry.auth && authError) { result.status = 'auth-required'; result.message = authError; continue; }
       const timeout = config.audit?.timeout ?? 30000;
       let context: Awaited<ReturnType<typeof browser.newContext>> | undefined;
       try {
-        context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height }, colorScheme: viewport.colorScheme ?? 'light', ...(entry.auth && config.auth ? { storageState: resolve(dir, config.auth.storageState) } : {}) });
+        context = await browser.newContext({ ...(scenario?.mocks?.length ? { serviceWorkers: 'block' as const } : {}), viewport: { width: viewport.width, height: viewport.height }, colorScheme: viewport.colorScheme ?? 'light', ...(entry.auth && config.auth ? { storageState: resolve(dir, config.auth.storageState) } : {}) });
+        if (scenario) result.mocks = await installMocks(context, scenario, config.baseURL);
         const page = await context.newPage();
         page.setDefaultTimeout(timeout);
         const check = async () => {
@@ -106,7 +110,12 @@ export async function runChecks(config: CheckConfig, options: RunCheckOptions = 
           if (response && !response.ok()) throw new Error(`Page returned HTTP ${response.status()}.`);
           const final = new URL(page.url());
           if (final.origin !== requested.origin || final.pathname.replace(/\/$/, '') !== requested.pathname.replace(/\/$/, '')) throw new Error('Page redirected to a different route. Configure the destination explicitly so the intended page is checked.');
-          const report = await auditPage(page, { ...config.audit, ...(entry.readySelector ? { readySelector: entry.readySelector } : {}) });
+          if (scenario) await runSteps(page, scenario, result.steps!, timeout);
+          if (new URL(page.url()).origin !== requested.origin) throw new Error('Scenario left the configured app origin.');
+          const readySelector = scenario?.readySelector ?? entry.readySelector;
+          const report = await auditPage(page, { ...config.audit, ...(readySelector ? { readySelector } : {}) });
+          if (result.mocks?.some(mock => mock.calls < mock.expectedResponses)) throw new Error('Scenario did not consume every configured mock response. Check the path, method, and steps.');
+          if (scenario) report.coverage.limitations.push('Scenario coverage includes only the final state after the configured steps. Mocked API responses do not verify the backend.');
           if (config.screenshots !== false && report.findings.length) {
             const filename = `screenshots/${result.id}.png`;
             try { await capture(page, report.findings.map(f => f.target), resolve(output, filename)); result.screenshot = filename; }
@@ -115,7 +124,7 @@ export async function runChecks(config: CheckConfig, options: RunCheckOptions = 
           }
           return report;
         };
-        result.report = await timed(check(), timeout * 3 + 10000, scope.signal, () => context!.close());
+        result.report = await timed(check(), timeout * (3 + (scenario?.steps.length ?? 0)) + 10000, scope.signal, () => context!.close());
         result.status = 'completed'; delete result.message;
       } catch (error) { result.status = error instanceof AuthRequired ? 'auth-required' : 'error'; result.message = safeError(error); }
       finally { await context?.close().catch(() => {}); }

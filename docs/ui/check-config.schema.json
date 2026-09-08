@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.4.0/docs/ui/check-config.schema.json",
+  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.5.0/docs/ui/check-config.schema.json",
   "title": "glocon project checks",
   "type": "object",
   "additionalProperties": false,
@@ -60,6 +60,15 @@
                 "type": "string",
                 "minLength": 1,
                 "description": "Wait for this CSS selector to be visible before auditing."
+              },
+              "scenarios": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 20,
+                "items": {
+                  "$ref": "#/$defs/scenario"
+                },
+                "description": "Each named scenario runs in an isolated context at every viewport; replaces the plain page check."
               }
             }
           }
@@ -241,6 +250,292 @@
       "type": "boolean",
       "default": true,
       "description": "Save local highlighted viewport screenshots. They may contain app content."
+    }
+  },
+  "$defs": {
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "selector"
+          ],
+          "properties": {
+            "action": {
+              "const": "click"
+            },
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "selector",
+            "value"
+          ],
+          "properties": {
+            "action": {
+              "const": "fill"
+            },
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "selector",
+            "key"
+          ],
+          "properties": {
+            "action": {
+              "const": "press"
+            },
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "selector",
+            "state"
+          ],
+          "properties": {
+            "action": {
+              "const": "expect"
+            },
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            },
+            "state": {
+              "enum": [
+                "visible",
+                "hidden",
+                "enabled",
+                "disabled",
+                "focused"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "selector",
+            "text"
+          ],
+          "properties": {
+            "action": {
+              "const": "expect"
+            },
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "action",
+            "selector",
+            "value"
+          ],
+          "properties": {
+            "action": {
+              "const": "expect"
+            },
+            "selector": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "mock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "responses"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^/(?!/)[^?#\\\\]*$",
+          "description": "Exact same-origin pathname. Query strings on requests are ignored."
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "HEAD"
+          ],
+          "default": "GET"
+        },
+        "responses": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "pending"
+                ],
+                "properties": {
+                  "pending": {
+                    "const": true
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [],
+                "properties": {
+                  "status": {
+                    "type": "integer",
+                    "anyOf": [
+                      {
+                        "minimum": 200,
+                        "maximum": 299
+                      },
+                      {
+                        "minimum": 400,
+                        "maximum": 599
+                      }
+                    ]
+                  },
+                  "json": {}
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "required": [
+                        "status"
+                      ],
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            204,
+                            205
+                          ]
+                        }
+                      }
+                    },
+                    "then": {
+                      "not": {
+                        "required": [
+                          "json"
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "method"
+            ],
+            "properties": {
+              "method": {
+                "const": "HEAD"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "responses": {
+                "items": {
+                  "not": {
+                    "required": [
+                      "json"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "steps"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "steps": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "readySelector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mocks": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/mock"
+          }
+        }
+      }
     }
   }
 }

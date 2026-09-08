@@ -20,11 +20,18 @@
 - Grouped HTML/JSON reports and highlighted local screenshots.
 - Clean-install React/Vite and Next.js framework fixtures.
 
+## Shipped in 0.5.0
+
+- Named interaction scenarios in the existing project-check command.
+- Click, fill, key press, and retrying assertions for visibility, enabled state, focus, text, and retained values.
+- Same-origin browser API response sequences and pending requests for repeatable loading/error/retry/success checks.
+- Isolated scenario/viewport contexts, step outcomes and mock counts, and scenario-aware baselines.
+- Copyable CLI examples, editor schema, and clean-installed Next.js/React/Vite scenario verification.
+
 ## Next: deepen verified workflows
 
 - Trial on real React, Angular, Electron, and native projects; measure false positives and usefulness.
-- Interaction scenarios for keyboard navigation, focus restoration, retained form values, and recovery.
-- Locale and explicit interaction-state matrices beyond the shipped viewport/color-scheme checks.
+- Locale matrices and deeper multi-page interaction workflows.
 - Trial baseline usefulness and false-positive rates in production applications.
 - Source locations from framework metadata, without pretending DOM selectors identify source lines.
 - SARIF and editor integration after source mapping is reliable.

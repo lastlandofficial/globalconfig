@@ -1,10 +1,11 @@
+import { validateScenarios, type CheckScenario } from './scenarios';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { PageAuditOptions } from '../ui/playwright/index';
 import type { Severity } from '../ui/core/types';
 import { auditSnapshot } from '../ui/core/engine';
 
-export interface CheckPage { path: string; name?: string; readySelector?: string; auth?: boolean }
+export interface CheckPage { path: string; name?: string; readySelector?: string; auth?: boolean; scenarios?: CheckScenario[] }
 export interface CheckViewport { name: string; width: number; height: number; colorScheme?: 'light' | 'dark' }
 export interface CheckConfig {
   $schema?: string;
@@ -48,7 +49,7 @@ export function validateCheckConfig(input: unknown): CheckConfig {
   const paths = new Set<string>();
   for (const entry of input.pages) {
     const page: Record<string, unknown> = typeof entry === 'string' ? { path: entry } : record(entry) ? entry : {};
-    keys(page, ['path', 'name', 'readySelector', 'auth'], 'Page');
+    keys(page, ['path', 'name', 'readySelector', 'auth', 'scenarios'], 'Page');
     string(page.path, 'Page path');
     const url = pageURL(page.path, input.baseURL);
     if (paths.has(url.href)) throw new Error(`Duplicate page path: ${url.pathname}`);
@@ -56,6 +57,7 @@ export function validateCheckConfig(input: unknown): CheckConfig {
     if (page.name !== undefined) string(page.name, 'Page name');
     if (page.readySelector !== undefined) string(page.readySelector, 'Page readySelector');
     boolean(page.auth, 'Page auth');
+    if (page.scenarios !== undefined) validateScenarios(page.scenarios);
     if (page.auth && !input.auth) throw new Error('Protected pages require auth.storageState and auth.readySelector.');
   }
   if (!Array.isArray(input.viewports) || !input.viewports.length || input.viewports.length > 12) throw new Error('Configure 1–12 viewports.');
