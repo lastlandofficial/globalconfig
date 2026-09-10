@@ -80,7 +80,7 @@ test('React controls pass in dark mode and narrow layouts', async ({ page }) => 
 });
 test('published CLI produces JSON and meaningful exit codes', async () => {
   const ok = await exec(process.execPath, ['bin/glocon.mjs', 'audit', 'http://127.0.0.1:4179/fixtures/healthy.html', '--json']);
-  expect(JSON.parse(ok.stdout).summary.total).toBe(0);
+  expect(JSON.parse(ok.stdout).findings).toEqual([]);
   try {
     await exec(process.execPath, ['bin/glocon.mjs', 'audit', 'http://127.0.0.1:4179/fixtures/broken.html', '--json']);
     throw new Error('Expected CLI failure');
@@ -97,4 +97,9 @@ test('financial calculation, invoice and partial credit core runs in the browser
   await page.goto('/finance');
   await expect(page.locator('#result')).toHaveText(JSON.stringify({gross:'2200',credit:'1100'}));
   expect(errors).toEqual([]);
+});
+
+test('CLI waits for delayed styles before measuring controls', async () => {
+  const result = await exec(process.execPath, ['bin/glocon.mjs', 'audit', 'http://127.0.0.1:4179/delayed-styles', '--json']);
+  expect(JSON.parse(result.stdout).findings).toEqual([]);
 });

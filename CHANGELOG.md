@@ -7,6 +7,7 @@
 - Add compliance setup/check/lock/explain/source/diff commands, tax quotes, invoice creation/validation/rendering, and editor schemas.
 - Add rule-revision evidence tracking to government plans while preserving existing progress assertions.
 - Add React/Next.js checkout examples and tests for arithmetic, invoice fields, replay, CLI workflows and concurrent credit limits.
+- Wait for initial page resources before UI measurements, preventing false target-size findings when stylesheets load slowly.
 - Preserve existing country count and APIs. Financial credits retain statutory review requirements; no live tax filing or e-invoice registration is performed.
 
 

@@ -10,6 +10,8 @@ const reactPage = '<!doctype html><html lang="en"><head><meta charset="utf-8"><m
 const server = createServer(async (request, response) => {
   try {
     const path = new URL(request.url, 'http://localhost').pathname;
+    if (path === '/delayed-styles') { response.setHeader('content-type', 'text/html'); response.end((await readFile(resolve(root, 'fixtures/healthy.html'), 'utf8')).replace('/styles/glocon.css', '/slow.css')); return; }
+    if (path === '/slow.css') { await new Promise(resolve => setTimeout(resolve, 750)); response.setHeader('content-type', 'text/css'); response.end(await readFile(resolve(root, 'styles/glocon.css'))); return; }
     if (path === '/finance') { response.setHeader('content-type','text/html'); response.end(financePage); return; }
     if (path === '/finance.js') { response.setHeader('content-type','text/javascript'); response.end(financeBundle.outputFiles[0].text); return; }
     if (path === '/react.js') { response.setHeader('content-type', 'text/javascript'); response.end(bundle.outputFiles[0].text); return; }

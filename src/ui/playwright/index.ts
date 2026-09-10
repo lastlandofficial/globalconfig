@@ -12,6 +12,8 @@ export interface PageAuditOptions extends AuditOptions, CollectOptions {
   timeout?: number;
 }
 export async function auditPage(page: Page, options: PageAuditOptions = {}): Promise<AuditReport> {
+  // DOMContentLoaded can precede stylesheet completion and produce false size findings.
+  await page.waitForLoadState('load', { timeout: options.timeout ?? 10000 });
   if (options.readySelector) await page.locator(options.readySelector).waitFor({ state: 'visible', timeout: options.timeout ?? 10000 });
   await page.evaluate(async () => { await document.fonts.ready; });
   const snapshot = await page.evaluate(collectSnapshot, options.maxElements === undefined ? {} : { maxElements: options.maxElements });
