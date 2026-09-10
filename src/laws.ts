@@ -1,3 +1,4 @@
+import { digest } from './compliance/rules';
 import { getCountry, resolveCountry } from './countries';
 import type { CountryCode } from './countries';
 import { dateOnly, freeze, isoInstant } from './internal';
@@ -51,6 +52,8 @@ export interface LawRule {
   readonly scope: string;
   readonly source: string;
   readonly reviewedOn: string;
+  readonly reviewAfter?: string;
+  readonly revision?: string;
   readonly effectiveFrom?: string;
   /** Exclusive end date. Missing does not guarantee that a rule remains current. */
   readonly effectiveTo?: string;
@@ -136,6 +139,7 @@ export interface ControlRecord {
   readonly status: ReviewStatus;
   readonly note: string;
   readonly updatedAt: string;
+  readonly ruleRevision?: string;
 }
 
 function validateRule(rule: LawRule) {
@@ -148,6 +152,8 @@ function validateRule(rule: LawRule) {
   if (rule.effectiveTo !== undefined) dateOnly(rule.effectiveTo);
   if (rule.effectiveFrom && rule.effectiveTo && rule.effectiveTo <= rule.effectiveFrom) throw new RangeError('effectiveTo must follow effectiveFrom');
   if (!Array.isArray(rule.when) || rule.when.some(fact => !Object.hasOwn(appFacts, fact))) throw new RangeError('Unknown applicability fact');
+  if (rule.reviewAfter !== undefined && dateOnly(rule.reviewAfter) <= rule.reviewedOn) throw new RangeError('reviewAfter must follow reviewedOn');
+  if (rule.revision !== undefined && !rule.revision.trim()) throw new TypeError('revision must be non-empty');
   const ids = new Set<string>();
   if (!Array.isArray(rule.controls) || !rule.controls.length) throw new TypeError('At least one control is required');
   for (const control of rule.controls) {
@@ -177,15 +183,17 @@ export function createLawsManager(options: { rules?: readonly LawRule[]; records
       ...(control.evidence === undefined ? {} : { evidence: [...control.evidence] }),
     })) }));
   };
-  const record = (input: ControlRecord) => {
+  const revisionOf = (rule: LawRule) => rule.revision ?? digest(JSON.parse(JSON.stringify(rule)));
+  const record = (input: ControlRecord, restoring = false) => {
     if (!rules.get(input.ruleId)?.controls.some(control => control.id === input.controlId)) throw new RangeError('Unknown law or control');
     if (!['todo', 'in-progress', 'done', 'not-applicable'].includes(input.status)) throw new RangeError('Unknown review status');
     if (typeof input.note !== 'string' || (['done', 'not-applicable'].includes(input.status) && !input.note.trim())) throw new TypeError('A review note or evidence reference is required for done/not-applicable');
     isoInstant(input.updatedAt);
-    records.set(key(input.ruleId, input.controlId), freeze({ ...input }));
+    if (input.ruleRevision !== undefined && (typeof input.ruleRevision !== 'string' || !input.ruleRevision.trim())) throw new TypeError('ruleRevision must be non-empty');
+    records.set(key(input.ruleId, input.controlId), freeze({ ...input, ...(!restoring && input.ruleRevision === undefined ? { ruleRevision: revisionOf(rules.get(input.ruleId)!) } : {}) }));
   };
   (options.rules ?? lawRules).forEach(register);
-  options.records?.forEach(record);
+  options.records?.forEach(input => record(input, true));
   const list = (filter: { country?: string; topic?: LawTopic } = {}) => {
     const country = filter.country === undefined ? undefined : resolveCountry(filter.country);
     if (filter.topic !== undefined && !['privacy', 'children', 'tax'].includes(filter.topic)) throw new RangeError('Unknown law topic');
@@ -203,15 +211,17 @@ export function createLawsManager(options: { rules?: readonly LawRule[]; records
       const timing = rule.effectiveFrom && on < rule.effectiveFrom ? 'upcoming' as const : rule.effectiveTo && on >= rule.effectiveTo ? 'outside-period' as const : rule.effectiveFrom ? 'within-period' as const : 'verify-commencement' as const;
       return {
         rule, applicability, timing,
-        sourceReviewRequired: on !== rule.reviewedOn,
+        sourceReviewRequired: rule.reviewAfter ? on >= rule.reviewAfter || on < rule.reviewedOn : on !== rule.reviewedOn,
+        revision: revisionOf(rule),
         missingFacts: rule.when.filter(fact => facts[fact] === undefined),
-        controls: rule.controls.map(control => ({ ...control, record: records.get(key(rule.id, control.id)) ?? null })),
+        controls: rule.controls.map(control => { const saved = records.get(key(rule.id, control.id)); return { ...control, record: saved ?? null, recordReviewRequired: !!saved && saved.ruleRevision !== revisionOf(rule), verification: !saved ? 'not-recorded' as const : saved.ruleRevision === revisionOf(rule) ? 'recorded-for-revision' as const : 'review-required' as const }; }),
       };
     });
     return freeze({ country: resolveCountry(context.country), on, scope: 'Selected developer checklists, not exhaustive legal coverage or a compliance certification.', items });
   };
   return Object.freeze({
-    register, list, record, assess,
+    register, list, record: (input: ControlRecord) => record(input), assess,
+    revision(id: string) { const rule = rules.get(id); if (!rule) throw new RangeError(`Unknown law: ${id}`); return revisionOf(rule); },
     exportRecords: () => Object.freeze([...records.values()]),
     /** Turn the assessment into questions and implementation tasks with source links. */
     plan(context: AppContext) {
@@ -232,6 +242,7 @@ export function createLawsManager(options: { rules?: readonly LawRule[]; records
         sourceReviewRequired: item.sourceReviewRequired,
         implementation: control.implementation ?? [], evidence: control.evidence ?? [],
         status: control.record?.status ?? 'todo' as const, record: control.record,
+        verification: control.verification, recordReviewRequired: control.recordReviewRequired, revision: item.revision,
       })));
       const sourcesToReview = [...new Set(candidates.filter(item => item.sourceReviewRequired)
         .flatMap(item => [item.rule.source, ...item.controls.map(control => control.source ?? item.rule.source)]))];
@@ -239,6 +250,7 @@ export function createLawsManager(options: { rules?: readonly LawRule[]; records
       return freeze({
         country: report.country, on: report.on, scope: report.scope,
         questions, tasks, sourcesToReview,
+        evidence: { recordedForRevision: tasks.filter(t => t.verification === 'recorded-for-revision').length, requiresReview: tasks.filter(t => t.recordReviewRequired).length, notRecorded: tasks.filter(t => !t.record).length },
         progress: { total: tasks.length, todo: count('todo'), inProgress: count('in-progress'), done: count('done'), notApplicable: count('not-applicable') },
       });
     },

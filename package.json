@@ -1,7 +1,7 @@
 {
   "name": "glocon",
-  "version": "0.5.0",
-  "description": "globalconfig: one-command project UI checks, test-login reuse, reviewed baselines, React components, and country utilities for JavaScript and TypeScript.",
+  "version": "0.6.0",
+  "description": "globalconfig: government-backed tax and invoice workflows, project UI checks, React components, and country utilities for JavaScript and TypeScript.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -135,7 +135,39 @@
         "default": "./dist/check/index.cjs"
       }
     },
-    "./check-config.schema.json": "./docs/ui/check-config.schema.json"
+    "./check-config.schema.json": "./docs/ui/check-config.schema.json",
+    "./compliance": {
+      "import": {
+        "types": "./dist/compliance/index.d.ts",
+        "default": "./dist/compliance/index.js"
+      },
+      "require": {
+        "types": "./dist/compliance/index.d.cts",
+        "default": "./dist/compliance/index.cjs"
+      }
+    },
+    "./compliance/server": {
+      "import": {
+        "types": "./dist/compliance/server.d.ts",
+        "default": "./dist/compliance/server.js"
+      },
+      "require": {
+        "types": "./dist/compliance/server.d.cts",
+        "default": "./dist/compliance/server.cjs"
+      }
+    },
+    "./compliance/sources": {
+      "import": {
+        "types": "./dist/compliance/sources.d.ts",
+        "default": "./dist/compliance/sources.js"
+      },
+      "require": {
+        "types": "./dist/compliance/sources.d.cts",
+        "default": "./dist/compliance/sources.cjs"
+      }
+    },
+    "./compliance-config.schema.json": "./docs/compliance/config.schema.json",
+    "./order.schema.json": "./docs/compliance/order.schema.json"
   },
   "files": [
     "dist",
@@ -204,21 +236,22 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@js-temporal/polyfill": "^0.5.1",
-    "decimal.js": "^10.6.0",
-    "@axe-core/playwright": "^4.10.2"
+    "@noble/hashes": "^1.8.0",
+    "decimal.js": "^10.6.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.28.2",
     "playwright": "^1.58.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
   "overrides": {

@@ -91,3 +91,10 @@ test('published CLI produces JSON and meaningful exit codes', async () => {
   }
   await expect(exec(process.execPath, ['bin/glocon.mjs', 'audit', 'file:///tmp/example.html'])).rejects.toMatchObject({ code: 2 });
 });
+
+test('financial calculation, invoice and partial credit core runs in the browser', async ({page}) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/finance');
+  await expect(page.locator('#result')).toHaveText(JSON.stringify({gross:'2200',credit:'1100'}));
+  expect(errors).toEqual([]);
+});

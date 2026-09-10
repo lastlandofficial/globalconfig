@@ -18,6 +18,8 @@ try {
   for (const framework of (process.env.GLOCON_FRAMEWORK ? [process.env.GLOCON_FRAMEWORK] : ['vite', 'next'])) {
     const began = Date.now(); const dir = join(temp, framework);
     await cp(join(root, 'fixtures/check-apps', framework), dir, { recursive: true });
+    await cp(join(root, 'examples/compliance/service.mjs'), join(dir, framework === 'next' ? 'app/compliance-service.js' : 'compliance-service.mjs'));
+    await cp(join(root, 'examples/compliance/checkout.jsx'), join(dir, framework === 'next' ? 'app/checkout.jsx' : 'src/checkout.jsx'));
     const appPort = await port();
     const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
     pkg.scripts.dev += ` --port ${appPort}`;
@@ -40,6 +42,11 @@ try {
     const example = JSON.parse((await exec(process.execPath, [cli, 'check', '--example'], { cwd: dir })).stdout);
     example.path = '/scenarios';
     config.pages.push(example);
+    config.pages.push({path:'/checkout',scenarios:[
+      {name:'real invoice and partial credit',steps:[{action:'click',selector:'#quote'},{action:'expect',selector:'#finance-total',text:'2200'},{action:'click',selector:'#issue'},{action:'expect',selector:'#finance-status',text:'Invoice recorded'},{action:'click',selector:'#credit'},{action:'expect',selector:'#finance-status',text:'Credit recorded'},{action:'expect',selector:'#finance-total',text:'1100'}]},
+      {name:'loading',mocks:[{path:'/api/compliance',method:'POST',responses:[{pending:true}]}],steps:[{action:'click',selector:'#quote'},{action:'expect',selector:'#finance-status',text:'Working…'},{action:'expect',selector:'#quote',state:'disabled'}]},
+      {name:'retry',mocks:[{path:'/api/compliance',method:'POST',responses:[{status:503},{json:{message:'Quote ready',total:'2200'}}]}],steps:[{action:'click',selector:'#quote'},{action:'expect',selector:'#finance-retry',state:'visible'},{action:'click',selector:'#finance-retry'},{action:'expect',selector:'#finance-total',text:'2200'}]}
+    ]});
     const expectedChecks = config.pages.reduce((count, page) => count + (page.scenarios?.length ?? 1), 0) * 2;
     await writeFile(configPath, JSON.stringify(config, null, 2));
     const execute = async () => {
@@ -49,7 +56,7 @@ try {
     const first = await execute();
     assert.equal(first.report.summary.incomplete, 0, JSON.stringify(first.report.cases.map(c => ({page:c.page,status:c.status,message:c.message}))) + '\n' + first.stderr);
     assert.equal(first.report.summary.completed, expectedChecks);
-    assert.equal(first.report.cases.filter(c => c.scenario).length, 8);
+    assert.equal(first.report.cases.filter(c => c.scenario).length, 14);
     assert.ok(first.report.cases.filter(c => c.scenario).every(c => c.steps.every(step => step.status === 'passed')));
     const firstMinutes = (Date.now() - began) / 60000;
     await exec(process.execPath, [cli, 'baseline', '--reason', 'Reviewed framework fixture findings'], { cwd: dir });
@@ -67,9 +74,9 @@ try {
       const expired = await execute(); assert.equal(expired.code, 2); assert.equal(expired.report.cases.filter(c => c.status === 'auth-required').length, 2);
     }
     assert.match(await readFile(join(dir, '.github/workflows/glocon.yml'), 'utf8'), /npm ci/);
-    results.push({ framework, firstReportMinutes: Number(firstMinutes.toFixed(2)), checks: first.report.summary.completed, regressionDetected: true, interactionScenarios: 4, authValidated: framework === 'next' });
+    results.push({ framework, firstReportMinutes: Number(firstMinutes.toFixed(2)), checks: first.report.summary.completed, regressionDetected: true, interactionScenarios: 7, financialLifecycle: true, authValidated: framework === 'next' });
     console.log(`${framework}: setup/install, automatic startup, ${expectedChecks} checks, baseline, new regression${framework === 'next' ? ', browser login and expired-session detection' : ''} passed (${firstMinutes.toFixed(2)} minutes to first report).`);
   }
   await writeFile('/tmp/glocon-framework-results.json', JSON.stringify(results, null, 2));
 } catch (error) { console.error(error); process.exitCode = 1; }
-finally { await rm(temp, { recursive: true, force: true }); }
+finally { if (process.env.GLOCON_KEEP_FRAMEWORKS === '1') console.log(`Retained framework fixtures: ${temp}`); else await rm(temp, { recursive: true, force: true }); }

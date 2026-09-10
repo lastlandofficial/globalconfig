@@ -1,7 +1,10 @@
-# glocon 0.5.0
+# glocon 0.6.0
 
 globalconfig is the glocon toolkit for JavaScript and TypeScript: UI, framework integrations, country utilities, and government-source workflows. Authentication is roadmap scope, not a shipped provider. glocon turns measurable UI/UX requirements into tests. npm package: glocon.
 Repository: https://github.com/lastlandofficial/globalconfig
+
+## Tax and invoice workflow (0.6.0)
+Use glocon compliance init --country IN|JP|US; --demo is fictional learning data. Complete reviewed business/catalog decisions, pin with glocon compliance lock, then glocon compliance check. glocon tax quote <order.json>; glocon invoice create <order.json> --details <file>; glocon invoice validate/render. glocon/compliance exports calculateOrder, createInvoiceDraft, validateInvoice, createCreditNoteDraft, renderInvoiceHTML, verifyCalculation, createComplianceLock, createReviewedTaxProvider, compareRulePacks, and types. Branch on ready/needs-context/unsupported/invalid. Amounts are decimal strings; quantities are positive integers; catalog prices are server-owned. Selected ordinary India GST/Japan invoice profiles, California reference only. Group tax by rate; preserve original snapshots. Digests detect changes but are not signatures. Financial credits always retain legalStatus review-required. glocon/compliance/server exports createSQLiteInvoiceStore for transactional numbering/idempotency/cumulative credits, tested with node:sqlite (Node 22.13+). Sources checks are explicit opt-in document-byte comparisons, never automatic legal updates. See docs/compliance/README.md and sources.md. Do not deploy the local unauthenticated example as a public API.
 
 ## Project workflow (0.4.0)
 Run glocon init --ui in an existing web app, then glocon check. Setup installs local tooling and Chromium; checks manage app startup. Config: glocon.check.json. Reports: .glocon/report.html and .glocon/report.json. Test-login reuse: auth.storageState, auth.readySelector, optional auth.setupCommand; glocon login captures a local test session. Baseline acceptance requires an explicit reason, a complete run from today, and future expiry. Incomplete pages always exit 2. Never treat skipped/unauthenticated pages as passed. Screenshots may contain app content and stay local; no automatic uploads. glocon/check is Node-only. See docs/ui/project-checks.md.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+- Add `glocon/compliance`: reviewed business/catalog configuration, dated treatment resolution, mixed-rate order calculations, inclusive/exclusive prices, discounts, grouped rounding, and reproducible snapshots.
+- Add selected India/Japan invoice validation, printable invoice drafts, cumulative financial credit drafts, and a transactional SQLite store with persistent numbers and idempotency.
+- Add compliance setup/check/lock/explain/source/diff commands, tax quotes, invoice creation/validation/rendering, and editor schemas.
+- Add rule-revision evidence tracking to government plans while preserving existing progress assertions.
+- Add React/Next.js checkout examples and tests for arithmetic, invoice fields, replay, CLI workflows and concurrent credit limits.
+- Preserve existing country count and APIs. Financial credits retain statutory review requirements; no live tax filing or e-invoice registration is performed.
+
+
 ## 0.5.0
 
 - Check interaction states through `glocon check`: named scenarios support click, fill, key presses, and retrying assertions for visibility, focus, enabled state, exact text, and retained input values.

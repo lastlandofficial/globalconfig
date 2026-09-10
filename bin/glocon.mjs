@@ -14,6 +14,10 @@ function help() {
   console.log(`globalconfig (glocon ${manifest.version})
 
 Usage:
+  glocon compliance init --country JP  Set up tax and invoice workflows
+  glocon compliance check             Verify financial fixtures and pinned rules
+  glocon tax quote <order.json>        Calculate a reviewed order
+  glocon invoice create <order.json> --details <details.json>
   glocon init --ui                    Set up project UI checks and CI
   glocon check                        Start the app and check pages and screen sizes
   glocon login                        Save a test login for protected pages
@@ -187,7 +191,12 @@ function plan(dir, values) {
 }
 
 const uiCommand = process.argv[2];
-if (['check', 'baseline', 'login'].includes(uiCommand) || (uiCommand === 'init' && process.argv.includes('--ui'))) {
+if (['compliance', 'tax', 'invoice'].includes(uiCommand)) {
+  try {
+    const { runComplianceCommand } = await import('../dist/compliance/cli.js');
+    await runComplianceCommand(process.argv.slice(2));
+  } catch (error) { console.error(`glocon: ${error.message}`); process.exitCode = 2; }
+} else if (['check', 'baseline', 'login'].includes(uiCommand) || (uiCommand === 'init' && process.argv.includes('--ui'))) {
   try {
     const { runCheckCommand } = await import('../dist/check/cli.js');
     await runCheckCommand(process.argv.slice(2), manifest.version);

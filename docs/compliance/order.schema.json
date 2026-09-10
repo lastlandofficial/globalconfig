@@ -1,0 +1,130 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "jurisdiction": {
+      "type": "string",
+      "minLength": 1
+    },
+    "buyer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "country": {
+          "enum": [
+            "IN",
+            "JP",
+            "US"
+          ]
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1
+        },
+        "registrationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stateCode": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name",
+        "country"
+      ]
+    },
+    "scenario": {
+      "enum": [
+        "ordinary-domestic",
+        "cross-border",
+        "reverse-charge",
+        "marketplace",
+        "special"
+      ]
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "productId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000000
+          },
+          "discount": {
+            "type": "string",
+            "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+          }
+        },
+        "required": [
+          "id",
+          "productId",
+          "quantity"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 1000
+    },
+    "discount": {
+      "type": "string",
+      "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+    },
+    "pricing": {
+      "enum": [
+        "inclusive",
+        "exclusive"
+      ]
+    },
+    "supply": {
+      "enum": [
+        "intra-state",
+        "inter-state"
+      ]
+    },
+    "localTax": {
+      "enum": [
+        "SGST",
+        "UTGST"
+      ]
+    },
+    "placeOfSupply": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "id",
+    "date",
+    "jurisdiction",
+    "buyer",
+    "scenario",
+    "lines",
+    "pricing"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glocon transaction"
+}

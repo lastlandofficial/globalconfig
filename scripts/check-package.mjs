@@ -19,6 +19,8 @@ try {
   assert.ok(!packed.files.some(file => /(^|\/)(\.env|\.npmrc|node_modules)/.test(file.path)));
   writeFileSync(join(temp, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
   execFileSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(temp, packed.filename)], { cwd: temp, stdio: 'pipe' });
+  writeFileSync(join(temp, 'finance-browser.js'), `import {calculateOrder,createComplianceExample} from 'glocon/compliance'; const e=createComplianceExample('JP'); globalThis.gloconFinancialResult=calculateOrder(e.config,e.order);`);
+  buildSync({entryPoints:[join(temp,'finance-browser.js')],bundle:true,platform:'browser',format:'iife',outfile:join(temp,'finance-bundle.js')});
   const installedCli = join(temp, 'node_modules/glocon/bin/glocon.mjs');
   assert.equal(execFileSync(process.execPath, [installedCli, '--version'], { encoding: 'utf8' }).trim(), manifest.version);
   execFileSync(process.execPath, [installedCli, 'init', '--country', 'IN', '--dir', temp, '--no-install'], { stdio: 'pipe' });
@@ -35,7 +37,7 @@ assert.equal(createGlobalConfig({ country: 'IN' }).currency.format('100'), '₹1
 assert.equal(require('glocon').getCountry('Japan').code, 'JP');
 assert.equal(createGlobalConfig('IN').tax.calculate({ amount: '100', rate: '18', supply: 'inter-state' }).gross, '118.00');
 assert.equal(require('glocon').createGlobalConfig('JP').currency.toMinorUnits('100'), 100n);
-for (const entry of ['countries', 'currency', 'time', 'tax', 'laws']) {
+for (const entry of ['countries', 'currency', 'time', 'tax', 'laws', 'compliance']) {
   assert.ok(Object.keys(await import('glocon/' + entry)).length);
   assert.ok(Object.keys(require('glocon/' + entry)).length);
 }`;

@@ -75,3 +75,7 @@ console.log(restored.laws.plan().progress);
 Source review dates describe this release's research. `sourcesToReview` lists relevant sources when the requested date differs from the recorded review date. This conservative flag does not detect whether a government page actually changed. CLI commands and library calls make no automatic legal-data fetches.
 
 For a rule maintained by your team, use `createLawsManager({ rules })` or `register(rule)`. Controls may include `implementation`, `evidence`, and a more specific HTTPS `source`. Preserve stable IDs when the same control continues; add a new ID for materially new review work so an earlier `done` record does not complete it automatically. Keep the exact scope, source-review date, and established effective period with the rule.
+
+## Executable tax and invoice workflows (0.6.0)
+
+Use the new [compliance workflow](compliance/README.md) for reviewed order calculations, selected invoice validation, financial credits, source diffs, and CI fixtures. Existing law plans now expose revision-specific evidence status alongside legacy progress assertions; old records are not automatically treated as verification of changed requirements.

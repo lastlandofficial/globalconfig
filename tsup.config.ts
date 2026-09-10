@@ -2,9 +2,12 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig([
   {
-    entry: { 'check/index': 'src/check/index.ts', 'check/cli': 'src/check/cli.ts' },
+    entry: { 'compliance/cli': 'src/compliance/cli.ts', 'compliance/server': 'src/compliance/server.ts', 'compliance/sources': 'src/compliance/sources.ts', 'check/index': 'src/check/index.ts', 'check/cli': 'src/check/cli.ts' },
     format: ['esm', 'cjs'], dts: true, target: 'node20', platform: 'node',
     splitting: true, sourcemap: true, external: ['playwright', '@playwright/test', '@axe-core/playwright'],
+  },
+  {
+    entry: { 'compliance/index': 'src/compliance/index.ts' }, format: ['esm', 'cjs'], target: 'es2022', platform: 'neutral', dts: true, sourcemap: true, splitting: false,
   },
   {
     entry: ['src/index.ts', 'src/countries.ts', 'src/currency.ts', 'src/time.ts', 'src/tax.ts', 'src/laws.ts'],
