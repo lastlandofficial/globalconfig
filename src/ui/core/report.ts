@@ -1,6 +1,10 @@
 import type { AuditOptions, AuditReport, Finding, Severity } from "./types";
 
 const severities = ["error", "warning", "info"];
+function validateRuleSeverity(id: string, severity: unknown): void {
+  if (![...severities, "off"].includes(severity as string))
+    throw new Error(`Invalid severity for ${id}`);
+}
 
 /** @internal Shared runtime validation for JavaScript and untyped configuration callers. */
 export function validateAuditOptions(options: AuditOptions): void {
@@ -35,8 +39,7 @@ export function validateAuditOptions(options: AuditOptions): void {
   )
     throw new Error("rules must map rule IDs to severities.");
   for (const [id, severity] of Object.entries(options.rules ?? {}))
-    if (![...severities, "off"].includes(severity))
-      throw new Error(`Invalid severity for ${id}`);
+    validateRuleSeverity(id, severity);
   if (
     options.suppressions !== undefined &&
     !Array.isArray(options.suppressions)
@@ -96,7 +99,9 @@ export function createReport(
   for (const finding of findings) {
     if (!severities.includes(finding.severity))
       throw new Error(`Invalid finding severity for ${finding.ruleId}`);
-    if (options.rules?.[finding.ruleId] === "off") continue;
+    const severity = options.rules?.[finding.ruleId];
+    if (severity !== undefined) validateRuleSeverity(finding.ruleId, severity);
+    if (severity === "off") continue;
     const suppression = options.suppressions?.find(
       (s) =>
         s.ruleId === finding.ruleId &&
@@ -107,10 +112,7 @@ export function createReport(
         throw new Error("Suppressions require a non-empty reason.");
       suppressed.push({ finding, reason: suppression.reason });
     } else {
-      const severity = options.rules?.[finding.ruleId];
-      active.push(
-        severity && severity !== "off" ? { ...finding, severity } : finding,
-      );
+      active.push(severity ? { ...finding, severity } : finding);
     }
   }
   const rank = { error: 0, warning: 1, info: 2 };

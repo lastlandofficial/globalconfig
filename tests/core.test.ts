@@ -233,12 +233,50 @@ describe("report controls and custom rules", () => {
         options,
       ),
     ).toThrow("Invalid severity");
+    for (const rules of [
+      Object.create({ "contract/missing-ui": "fatal" }),
+      Object.defineProperty({}, "contract/missing-ui", { value: "fatal" }),
+      Object.defineProperty({}, "contract/missing-ui", { get: () => "fatal" }),
+    ])
+      expect(() =>
+        checkContract(
+          contract,
+          { loaded: { visibleCounts: { "#save": 0 } } },
+          { rules },
+        ),
+      ).toThrow("Invalid severity");
+    let reads = 0;
+    const getterReport = checkContract(
+      contract,
+      { loaded: { visibleCounts: { "#save": 0 } } },
+      {
+        rules: Object.defineProperty({}, "contract/missing-ui", {
+          get: () => (++reads === 1 ? "warning" : "fatal"),
+        }),
+      },
+    );
+    expect(reads).toBe(1);
+    expect(getterReport.findings[0]?.severity).toBe("warning");
+    expect(getterReport.summary).toEqual({
+      error: 0,
+      warning: 1,
+      info: 0,
+      total: 1,
+    });
     const report = auditSnapshot(page);
     expect(() =>
       createReport(
         report.source,
         [{ ...report.findings[0]!, severity: "fatal" } as never],
         report.coverage,
+      ),
+    ).toThrow("Invalid finding severity");
+    expect(() =>
+      createReport(
+        report.source,
+        [{ ...report.findings[0]!, severity: "fatal" } as never],
+        report.coverage,
+        { rules: { [report.findings[0]!.ruleId]: "off" } },
       ),
     ).toThrow("Invalid finding severity");
     expect(() => shouldFail(report, "fatal" as never)).toThrow("threshold");
