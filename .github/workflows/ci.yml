@@ -109,3 +109,5 @@ jobs:
             /tmp/glocon-native-metro.log
             /tmp/glocon-native-light.png
             /tmp/glocon-native-dark.png
+            /tmp/glocon-native-hierarchy.xml
+            /tmp/glocon-native-failure.png

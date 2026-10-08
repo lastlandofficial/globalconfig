@@ -26,6 +26,7 @@ const app = join(temp, "app");
 const events = [];
 let metro;
 let metroOutput = "";
+let lastHierarchy = "";
 const reverses = [];
 const adb = (...args) =>
   exec("adb", ["-s", serial, ...args], { timeout: 120000, maxBuffer: 8e6 });
@@ -57,7 +58,8 @@ async function until(check, label, timeout = 60000) {
 }
 async function hierarchy() {
   await adb("shell", "uiautomator", "dump", "/sdcard/glocon-ui.xml");
-  return (await adb("shell", "cat", "/sdcard/glocon-ui.xml")).stdout;
+  lastHierarchy = (await adb("shell", "cat", "/sdcard/glocon-ui.xml")).stdout;
+  return lastHierarchy;
 }
 function control(xml, label) {
   return [...xml.matchAll(/<node\b[^>]*>/g)]
@@ -86,30 +88,49 @@ async function tap(label) {
   await tapNode(node);
 }
 async function prepareInteractions() {
-  let continued = false;
-  let closedMenu = false;
-  await until(async () => {
-    const xml = await hierarchy();
-    if (control(xml, "Record invoice")) return true;
-    // A fresh Expo Go install opens its own introductory developer sheet.
-    // Dismiss only this observed shell UI; never bypass an application action.
-    const proceed = control(xml, "Continue");
-    if (!continued && proceed && xml.includes("This is the developer menu.")) {
-      await tapNode(proceed);
-      continued = true;
+  let continues = 0;
+  let closes = 0;
+  let previousProceedBounds;
+  try {
+    await until(async () => {
+      const xml = await hierarchy();
+      if (control(xml, "Record invoice")) return true;
+      // A fresh Expo Go install opens its own animated developer sheet.
+      // Dismiss only this observed shell UI; never retry or bypass an application action.
+      const proceed = control(xml, "Continue");
+      if (proceed && xml.includes("This is the developer menu.")) {
+        const bounds = proceed.match(/bounds="[^"]+"/)?.[0];
+        if (bounds === previousProceedBounds && continues < 3) {
+          await tapNode(proceed);
+          continues++;
+          events.push({
+            kind: "shell-ui",
+            value: { action: "Continue", attempt: continues, bounds },
+          });
+        }
+        previousProceedBounds = bounds;
+        return false;
+      }
+      if (
+        closes < 3 &&
+        xml.includes("Glocon native verification") &&
+        control(xml, "Reload")
+      ) {
+        await adb("shell", "input", "keyevent", "KEYCODE_BACK");
+        closes++;
+        events.push({
+          kind: "shell-ui",
+          value: { action: "Close developer menu", attempt: closes },
+        });
+      }
       return false;
-    }
-    if (
-      continued &&
-      !closedMenu &&
-      xml.includes("Glocon native verification") &&
-      control(xml, "Reload")
-    ) {
-      await adb("shell", "input", "keyevent", "KEYCODE_BACK");
-      closedMenu = true;
-    }
-    return false;
-  }, "Expo developer menu dismissed and application controls visible");
+    }, "Expo developer menu dismissed and application controls visible");
+  } catch (error) {
+    throw Error(
+      `${error.message}\nMenu actions: Continue=${continues}, Back=${closes}\n${lastHierarchy}`,
+      { cause: error },
+    );
+  }
 }
 try {
   console.log("Preparing a fresh Expo 57 consumer of the packed library.");
@@ -403,6 +424,15 @@ try {
 } catch (error) {
   console.error(error);
   console.error(metroOutput.slice(-12000));
+  await writeFile(
+    "/tmp/glocon-native-failure.png",
+    (
+      await exec("adb", ["-s", serial, "exec-out", "screencap", "-p"], {
+        encoding: "buffer",
+        maxBuffer: 8e6,
+      })
+    ).stdout,
+  ).catch(() => {});
   process.exitCode = 1;
 } finally {
   if (metro?.pid) {
@@ -429,6 +459,7 @@ try {
     JSON.stringify(events, null, 2),
   );
   await writeFile("/tmp/glocon-native-metro.log", metroOutput);
+  await writeFile("/tmp/glocon-native-hierarchy.xml", lastHierarchy);
   await writeFile(join(temp, "events.json"), JSON.stringify(events, null, 2));
   if (process.env.GLOCON_KEEP_NATIVE === "1")
     console.log(`Retained native fixture: ${temp}`);
