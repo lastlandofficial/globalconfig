@@ -121,6 +121,7 @@ try {
         slug: "glocon-native-verification",
         version: "1.0.0",
         jsEngine: "hermes",
+        userInterfaceStyle: "automatic",
       },
     }),
   );
@@ -173,7 +174,15 @@ try {
     ],
     {
       cwd: app,
-      env: { ...process.env, CI: "1", EXPO_NO_TELEMETRY: "1" },
+      env: {
+        ...process.env,
+        CI: "1",
+        EXPO_NO_TELEMETRY: "1",
+        // Metro binds "localhost"; adb reverse and fixture callbacks use IPv4.
+        NODE_OPTIONS: [process.env.NODE_OPTIONS, "--dns-result-order=ipv4first"]
+          .filter(Boolean)
+          .join(" "),
+      },
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -241,6 +250,15 @@ try {
     )
   ).value;
   assert.deepEqual(healthy.report.findings, [], JSON.stringify(healthy));
+  await writeFile(
+    "/tmp/glocon-native-light.png",
+    (
+      await exec("adb", ["-s", serial, "exec-out", "screencap", "-p"], {
+        encoding: "buffer",
+        maxBuffer: 8e6,
+      })
+    ).stdout,
+  );
   await tap("Record invoice");
   assert.equal(
     (
@@ -284,6 +302,15 @@ try {
     )
   ).value;
   assert.deepEqual(dark.report.findings, [], JSON.stringify(dark));
+  await writeFile(
+    "/tmp/glocon-native-dark.png",
+    (
+      await exec("adb", ["-s", serial, "exec-out", "screencap", "-p"], {
+        encoding: "buffer",
+        maxBuffer: 8e6,
+      })
+    ).stdout,
+  );
   await tap("Show defect");
   const broken = (
     await until(

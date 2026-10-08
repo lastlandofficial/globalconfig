@@ -107,3 +107,5 @@ jobs:
             /tmp/glocon-native-results.json
             /tmp/glocon-native-validation-events.json
             /tmp/glocon-native-metro.log
+            /tmp/glocon-native-light.png
+            /tmp/glocon-native-dark.png
