@@ -93,5 +93,45 @@ export function createComplianceExample(
       : {}),
   };
   const details: InvoiceDetails = { number: `INV/${year}/1`, issuedOn: date };
-  return { config, order, details };
+  const expected =
+    country === "JP"
+      ? { status: "ready" as const, net: "2000", tax: "200", gross: "2200" }
+      : country === "IN"
+        ? {
+            status: "ready" as const,
+            net: "200.00",
+            tax: "36.00",
+            gross: "236.00",
+          }
+        : {
+            status: "ready" as const,
+            net: "200.00",
+            tax: "14.50",
+            gross: "214.50",
+          };
+  return { config, order, details, expected };
+}
+
+/** Fictional metered fixture with independently specified expected amounts. */
+export function createMeteredComplianceExample(
+  country: CountryCode = "JP",
+  date = "2026-09-09",
+) {
+  const sample = createComplianceExample(country, date);
+  sample.config.billing = {
+    quantityPrecision: 6,
+    unitPricePrecision: 6,
+    lineRounding: "half-up",
+    review: { ...sample.config.business.review! },
+  };
+  sample.config.products[0]!.unitPrice = "50";
+  sample.config.products[0]!.unit = "metered unit";
+  sample.order.lines[0]!.quantity = "0.3";
+  sample.expected =
+    country === "JP"
+      ? { status: "ready", net: "15", tax: "2", gross: "17" }
+      : country === "IN"
+        ? { status: "ready", net: "15.00", tax: "2.70", gross: "17.70" }
+        : { status: "ready", net: "15.00", tax: "1.09", gross: "16.09" };
+  return sample;
 }

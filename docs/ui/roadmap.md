@@ -28,6 +28,14 @@
 - Isolated scenario/viewport contexts, step outcomes and mock counts, and scenario-aware baselines.
 - Copyable CLI examples, editor schema, and clean-installed Next.js/React/Vite scenario verification.
 
+## Prepared in 0.7.0 (release candidate)
+
+- Reject unexpected standalone audit redirects and incomplete DOM collection by default.
+- Require complete native measurement data.
+- Preserve package sources on setup, make accessibility tooling optional for utility consumers, and verify public default installs after releases.
+- Require financial quote/invoice acceptance scope and independently reviewed expected amounts.
+- Expand automated browser checks across Chromium, Firefox and WebKit, and verify a packaged Linux Electron application with explicit same-origin accessibility coverage.
+
 ## Next: deepen verified workflows
 
 - Trial on real React, Angular, Electron, and native projects; measure false positives and usefulness.
@@ -45,4 +53,4 @@
 - MCP/editor integrations if validated workflows benefit beyond CLI JSON and llms.txt.
 - Static framework analysis for likely state omissions, explicitly reported as inference.
 
-No dates or support claims are implied for unimplemented items. Release 0.3.0 is a foundation, not complete automated UX testing.
+No dates or support claims are implied for unimplemented items. The toolkit remains a foundation for measured checks and explicitly authored scenarios. Independent trials and native-device coverage are still required before broader readiness claims.

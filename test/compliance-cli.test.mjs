@@ -81,7 +81,10 @@ test("CLI demo setup, quote, invoice, report, lock mismatch and preservation", a
       JSON.stringify(changed),
     );
     assert.equal((await run(dir, "compliance", "check")).code, 2);
-    await assert.rejects(readFile(join(dir, ".glocon/compliance-report.json")), { code: "ENOENT" });
+    await assert.rejects(
+      readFile(join(dir, ".glocon/compliance-report.json")),
+      { code: "ENOENT" },
+    );
     assert.equal((await run(dir, "compliance", "lock")).code, 0);
     assert.equal((await run(dir, "compliance", "check")).code, 1);
   } finally {
@@ -102,5 +105,44 @@ test("production setup leaves treatment and registration decisions unresolved", 
     assert.equal(r.status, "needs-context");
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("metered demos declare reviewed precision and pass independent invoice expectations", async () => {
+  for (const country of ["JP", "IN", "US"]) {
+    const dir = await mkdtemp(join(tmpdir(), "glocon-metered-cli-"));
+    try {
+      assert.equal(
+        (
+          await run(
+            dir,
+            "compliance",
+            "init",
+            "--country",
+            country,
+            "--demo",
+            "--metered",
+          )
+        ).code,
+        0,
+      );
+      const config = JSON.parse(
+        await readFile(join(dir, "glocon.compliance.json"), "utf8"),
+      );
+      assert.equal(config.billing.quantityPrecision, 6);
+      assert.equal((await run(dir, "compliance", "check")).code, 0);
+      const report = JSON.parse(
+        await readFile(join(dir, ".glocon/compliance-report.json"), "utf8"),
+      );
+      assert.equal(report.coverage.invoices.exactAssertions, 1);
+      assert.equal(report.coverage.complete, true);
+      const quote = JSON.parse(
+        (await run(dir, "tax", "quote", "glocon.examples/order.json")).stdout,
+      );
+      assert.equal(quote.value.engine, "glocon-order-2");
+      assert.equal(quote.value.lines[0].quantity, "0.3");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   }
 });

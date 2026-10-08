@@ -71,9 +71,18 @@
             "minLength": 1
           },
           "quantity": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 1000000
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              },
+              {
+                "type": "string",
+                "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+              }
+            ],
+            "description": "Decimal strings require a reviewed billing policy. Runtime validates positive quantity, maximum 1000000, and configured precision."
           },
           "discount": {
             "type": "string",
@@ -126,5 +135,6 @@
     "pricing"
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "glocon transaction"
+  "title": "glocon transaction",
+  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.7.0/docs/compliance/order.schema.json"
 }

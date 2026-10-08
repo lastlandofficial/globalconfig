@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'" />
+    <title>Metered billing runtime verification</title>
+    <link rel="stylesheet" href="glocon.css" />
+    <link rel="stylesheet" href="fixture.css" />
+  </head>
+  <body>
+    <main class="glocon-stack">
+      <h1>Metered billing</h1>
+      <p>Runtime verification with fictional business details.</p>
+      <div class="glocon-field">
+        <label class="glocon-label" for="reference">Order reference</label>
+        <input class="glocon-input" id="reference" value="metered-order" />
+      </div>
+      <button class="glocon-button" id="issue" type="button">Record invoice</button>
+      <button class="glocon-button" id="first-credit" type="button">Credit first portion</button>
+      <button class="glocon-button" id="final-credit" type="button">Credit next portion</button>
+      <button class="glocon-button" id="retry" type="button" hidden>Retry</button>
+      <p role="status" id="status">Ready</p>
+      <output id="total" aria-label="Recorded amount"></output>
+      <p id="browser-result"></p>
+    </main>
+    <script src="renderer.js"></script>
+  </body>
+</html>

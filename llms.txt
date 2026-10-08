@@ -1,7 +1,9 @@
-# glocon 0.6.0
+# glocon 0.7.0 release candidate
 
 globalconfig is the glocon toolkit for JavaScript and TypeScript: UI, framework integrations, country utilities, and government-source workflows. Authentication is roadmap scope, not a shipped provider. glocon turns measurable UI/UX requirements into tests. npm package: glocon.
 Repository: https://github.com/lastlandofficial/globalconfig
+
+Local release candidate 0.7.0 is unpublished. npm latest is 0.5.0 as verified 2026-10-08; financial 0.6.0 is available from the versioned GitHub release tarball.
 
 ## Tax and invoice workflow (0.6.0)
 Use glocon compliance init --country IN|JP|US; --demo is fictional learning data. Complete reviewed business/catalog decisions, pin with glocon compliance lock, then glocon compliance check. glocon tax quote <order.json>; glocon invoice create <order.json> --details <file>; glocon invoice validate/render. glocon/compliance exports calculateOrder, createInvoiceDraft, validateInvoice, createCreditNoteDraft, renderInvoiceHTML, verifyCalculation, createComplianceLock, createReviewedTaxProvider, compareRulePacks, and types. Branch on ready/needs-context/unsupported/invalid. Amounts are decimal strings; quantities are positive integers; catalog prices are server-owned. Selected ordinary India GST/Japan invoice profiles, California reference only. Group tax by rate; preserve original snapshots. Digests detect changes but are not signatures. Financial credits always retain legalStatus review-required. glocon/compliance/server exports createSQLiteInvoiceStore for transactional numbering/idempotency/cumulative credits, tested with node:sqlite (Node 22.13+). Sources checks are explicit opt-in document-byte comparisons, never automatic legal updates. See docs/compliance/README.md and sources.md. Do not deploy the local unauthenticated example as a public API.

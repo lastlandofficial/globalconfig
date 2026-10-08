@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "release": "0.7.0",
+  "status": "not-run",
+  "participant": {
+    "id": null,
+    "independentOfPackageAuthor": null,
+    "experience": null
+  },
+  "application": {
+    "kind": null,
+    "framework": null,
+    "countries": [],
+    "billingModel": null,
+    "nativeRuntime": null
+  },
+  "tasks": [
+    {
+      "id": "fresh-install",
+      "instruction": "Install the versioned candidate archive in a fresh project; report the version shown by glocon --version.",
+      "startedAt": null,
+      "finishedAt": null,
+      "successWithoutAssistance": null,
+      "errors": []
+    },
+    {
+      "id": "first-ui-report",
+      "instruction": "Run UI setup and glocon check in a representative application; inspect phone and desktop reports.",
+      "minutesToFirstReport": null,
+      "assistanceRequired": [],
+      "expectedCoverageObserved": null
+    },
+    {
+      "id": "protected-page",
+      "instruction": "Use a test session for one protected page, then invalidate it and check the result.",
+      "correctPageObserved": null,
+      "expiredSessionDetected": null
+    },
+    {
+      "id": "real-state-scenarios",
+      "instruction": "Configure actual loading, error, retry, empty and success states using the application API behavior.",
+      "statesCovered": [],
+      "missingStates": [],
+      "authoringDifficulties": []
+    },
+    {
+      "id": "review-findings",
+      "instruction": "Review each reported finding against the actual application and record its disposition.",
+      "findings": [],
+      "dispositionFields": [
+        "ruleId",
+        "target",
+        "severity",
+        "confirmedDefect",
+        "falsePositiveReason",
+        "actionability",
+        "fixTimeMinutes"
+      ]
+    },
+    {
+      "id": "financial-acceptance",
+      "instruction": "With a qualified business reviewer, supply real reviewed catalog/rate inputs and independent expected amounts for successful quote and invoice cases plus expected refusals.",
+      "reviewerReference": null,
+      "exactAmountsAgreed": null,
+      "invoiceFieldsReviewed": null,
+      "unsupportedBusinessRequirements": []
+    },
+    {
+      "id": "rounding-migration",
+      "instruction": "Compare retained receipts and business rounding policy before and after the shared India default change, if applicable.",
+      "applicable": null,
+      "policy": null,
+      "existingDataReplays": null
+    },
+    {
+      "id": "value-and-fit",
+      "instruction": "Report whether the toolkit reduced work, which results led to fixes, and which required workflows it does not support.",
+      "workSavedMinutes": null,
+      "adoptionDecision": null,
+      "missingCapabilities": []
+    }
+  ],
+  "observations": [],
+  "completedAt": null,
+  "reviewedBy": null,
+  "conclusion": null,
+  "limits": "A prepared trial sheet does not establish independent user validation; leave outcome fields empty until the actual trial occurs."
+}

@@ -1,9 +1,9 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-for (const entry of ['', '/countries', '/currency', '/time', '/tax', '/laws']) {
+for (const entry of ["", "/countries", "/currency", "/time", "/tax", "/laws"]) {
   test(`ESM and CommonJS export parity: glocon${entry}`, async () => {
     const esm = await import(`glocon${entry}`);
     const cjs = require(`glocon${entry}`);

@@ -101,6 +101,34 @@
           "items": {
             "type": "string"
           }
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "acceptedIncomplete": {
+          "type": "boolean"
+        },
+        "collection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "total",
+            "inspected",
+            "truncated"
+          ],
+          "properties": {
+            "total": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "inspected": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "truncated": {
+              "type": "boolean"
+            }
+          }
         }
       }
     }

@@ -1,5 +1,7 @@
 import { currencyDigits, getCountry } from "../countries";
 import { D, freeze, rounding } from "../internal";
+import { calculationEngine } from "./billing";
+import { roundTax } from "../tax-rounding";
 import { validateComplianceConfig, validateOrder, money } from "./validation";
 import {
   copy,
@@ -51,8 +53,21 @@ export function calculateOrder(
     const minor = (v: string) => BigInt(new D(v).mul(scale).toFixed(0));
     const amount = (v: bigint) =>
       new D(v.toString()).div(scale).toFixed(digits);
-    const order = copy(validateOrder(orderInput, digits));
+    const order = copy(validateOrder(orderInput, digits, config.billing));
     const missing: ComplianceIssue[] = [];
+    if (
+      config.billing &&
+      (order.date < config.billing.review.on ||
+        order.date >= config.billing.review.after)
+    )
+      missing.push(
+        issue(
+          "BILLING-REVIEW",
+          "billing.review",
+          "The billing precision policy is outside its reviewed period.",
+          "Review quantity/price precision and line rounding for this transaction date.",
+        ),
+      );
     if (
       order.scenario !== "ordinary-domestic" ||
       order.buyer.country !== country.code
@@ -218,6 +233,8 @@ export function calculateOrder(
           ],
         };
       const total = new D(product.unitPrice).mul(line.quantity);
+      if (config.billing && total.gte("1e30"))
+        throw Error("Extended line amount must have a magnitude below 1e30.");
       const discount = money(line.discount ?? "0", digits, "Line discount");
       if (discount.gt(total))
         throw Error("Line discount exceeds the line price.");
@@ -225,7 +242,11 @@ export function calculateOrder(
         product,
         rule,
         line,
-        charge: minor(total.minus(discount).toFixed(digits)),
+        charge: minor(
+          total
+            .minus(discount)
+            .toFixed(digits, rounding(config.billing?.lineRounding)),
+        ),
         discount: minor(discount.toFixed(digits)),
       });
     }
@@ -274,12 +295,14 @@ export function calculateOrder(
           ? base.mul(rate).div(rate.plus(100))
           : base.mul(rate).div(100);
       const intra = country.code === "IN" && order.supply === "intra-state";
-      const tax = intra
-        ? rawTax
-            .div(2)
-            .toDecimalPlaces(digits, rounding(config.rounding))
-            .mul(2)
-        : rawTax.toDecimalPlaces(digits, rounding(config.rounding));
+      const rounded = roundTax(
+        rawTax,
+        digits,
+        config.rounding,
+        intra,
+        config.indiaRounding,
+      );
+      const tax = rounded.tax;
       const totalTax = minor(tax.toFixed(digits));
       const taxes = allocate(totalTax, charges);
       for (const [j, i] of indexes.entries()) {
@@ -300,12 +323,12 @@ export function calculateOrder(
             {
               name: "CGST",
               rate: rate.div(2).toString(),
-              amount: tax.div(2).toFixed(digits),
+              amount: rounded.central.toFixed(digits),
             },
             {
               name: order.localTax!,
               rate: rate.div(2).toString(),
-              amount: tax.div(2).toFixed(digits),
+              amount: rounded.local.toFixed(digits),
             },
           ]
         : [
@@ -332,7 +355,7 @@ export function calculateOrder(
     const sum = (field: "net" | "tax" | "gross" | "discount") =>
       lines.reduce((n, l) => n.plus(l[field]), new D(0)).toFixed(digits);
     const body = {
-      engine: "glocon-order-1" as const,
+      engine: calculationEngine(config),
       currency: country.currency,
       country: country.code,
       lines,
@@ -348,6 +371,13 @@ export function calculateOrder(
         "This result is a calculation, not government registration, a tax return or compliance certification.",
       ],
     };
+    if (
+      config.billing &&
+      [body.net, body.tax, body.gross, body.discount].some((value) =>
+        new D(value).gte("1e30"),
+      )
+    )
+      throw Error("Calculated totals must have a magnitude below 1e30.");
     return {
       status: "ready",
       value: freeze({ ...body, digest: digest(body) }),
@@ -369,7 +399,8 @@ export function calculateOrder(
 /** Recompute saved inputs. A digest detects changes; it is not a signature or authenticity proof. */
 export function verifyCalculation(value: Calculation): boolean {
   try {
-    if (value.engine !== "glocon-order-1") return false;
+    if (value.engine !== "glocon-order-1" && value.engine !== "glocon-order-2")
+      return false;
     const replay = calculateOrder(value.snapshot.config, value.snapshot.order);
     return replay.status === "ready" && digest(replay.value) === digest(value);
   } catch {

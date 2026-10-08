@@ -1,7 +1,10 @@
-export type Severity = 'error' | 'warning' | 'info';
-export type Confidence = 'high' | 'medium';
-export type Category = 'accessibility' | 'layout' | 'consistency' | 'ux';
-export type Evidence = Record<string, string | number | boolean | string[] | number[]>;
+export type Severity = "error" | "warning" | "info";
+export type Confidence = "high" | "medium";
+export type Category = "accessibility" | "layout" | "consistency" | "ux";
+export type Evidence = Record<
+  string,
+  string | number | boolean | string[] | number[]
+>;
 export interface Finding {
   fingerprint: string;
   ruleId: string;
@@ -23,7 +26,12 @@ export interface RuleMeta {
   rationale: string;
   helpUrl?: string;
 }
-export interface Rect { x: number; y: number; width: number; height: number }
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 export interface ElementSnapshot {
   target: string;
   tag: string;
@@ -41,17 +49,25 @@ export interface ElementSnapshot {
   ignore: string[];
 }
 export interface UISnapshot {
-  platform: 'web' | 'native';
+  platform: "web" | "native";
   url?: string;
   viewport: { width: number; height: number };
   document: { scrollWidth: number; clientWidth: number };
   elements: ElementSnapshot[];
   /** Adapter-discovered limits, preserved in every report. */
   limitations?: string[];
+  /** Measured collection coverage, independent of findings and rule suppressions. */
+  collection?: { total: number; inspected: number; truncated: boolean };
 }
-export interface Suppression { ruleId: string; target?: string; reason: string }
+export interface Suppression {
+  ruleId: string;
+  target?: string;
+  reason: string;
+}
 export interface AuditOptions {
-  rules?: Record<string, Severity | 'off'>;
+  /** Truncated collection is incomplete unless explicitly accepted. */
+  coveragePolicy?: "complete" | "allow-truncated";
+  rules?: Record<string, Severity | "off">;
   /** Opt-in spacing policy in CSS px (web) or layout units (native). */
   spacingScale?: number[];
   spacingTolerance?: number;
@@ -59,15 +75,35 @@ export interface AuditOptions {
   suppressions?: Suppression[];
 }
 export interface AuditReport {
-  schemaVersion: '1.0';
-  engineVersion: '0.1.0';
+  schemaVersion: "1.0";
+  engineVersion: "0.1.0" | "0.2.0";
   source: string;
   findings: Finding[];
   suppressed: Array<{ finding: Finding; reason: string }>;
   summary: { error: number; warning: number; info: number; total: number };
-  coverage: { rules: string[]; elements: number; limitations: string[] };
+  coverage: {
+    rules: string[];
+    elements: number;
+    limitations: string[];
+    collection?: UISnapshot["collection"];
+    complete?: boolean;
+    acceptedIncomplete?: boolean;
+  };
 }
 export interface Rule {
   meta: RuleMeta;
-  check(snapshot: UISnapshot, options: AuditOptions): Array<Omit<Finding, 'fingerprint' | 'ruleId' | 'severity' | 'confidence' | 'category' | 'helpUrl'>>;
+  check(
+    snapshot: UISnapshot,
+    options: AuditOptions,
+  ): Array<
+    Omit<
+      Finding,
+      | "fingerprint"
+      | "ruleId"
+      | "severity"
+      | "confidence"
+      | "category"
+      | "helpUrl"
+    >
+  >;
 }

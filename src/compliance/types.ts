@@ -1,5 +1,6 @@
 import type { CountryCode, CurrencyCode } from "../countries";
 import type { RoundingMode } from "../internal";
+import type { IndiaRoundingPolicy } from "../tax-rounding";
 export interface Review {
   by: string;
   on: string;
@@ -67,7 +68,19 @@ export interface ComplianceConfig {
   products: Product[];
   rules: RulePack;
   rounding: RoundingMode;
+  /** Defaults to components, matching calculateTax. Recorded in calculation snapshots when supplied. */
+  indiaRounding?: IndiaRoundingPolicy;
+  /** Explicit reviewed precision for metered/fractional billing; absence retains the original integer engine. */
+  billing?: BillingPolicy;
 }
+export interface BillingPolicy {
+  quantityPrecision: number;
+  unitPricePrecision: number;
+  lineRounding: RoundingMode;
+  review: Review;
+}
+/** Whole quantities may be numbers; fractional quantities must use exact plain decimal strings. */
+export type Quantity = number | string;
 export interface Buyer {
   name: string;
   country: CountryCode;
@@ -89,7 +102,7 @@ export interface Order {
   lines: {
     id: string;
     productId: string;
-    quantity: number;
+    quantity: Quantity;
     discount?: string;
   }[];
   discount?: string;
@@ -117,7 +130,7 @@ export interface CalculatedLine {
   description: string;
   classification: string;
   unit: string;
-  quantity: number;
+  quantity: Quantity;
   unitPrice: string;
   discount: string;
   treatment: TaxTreatment;
@@ -136,7 +149,7 @@ export interface TaxGroup {
   components: { name: string; rate: string; amount: string }[];
 }
 export interface Calculation {
-  engine: "glocon-order-1";
+  engine: "glocon-order-1" | "glocon-order-2";
   currency: CurrencyCode;
   country: CountryCode;
   lines: CalculatedLine[];
@@ -174,11 +187,11 @@ export interface CreditRequest {
   date: string;
   reason: string;
   review: Review;
-  lines: { lineId: string; quantity: number }[];
+  lines: { lineId: string; quantity: Quantity }[];
 }
 export interface CreditLine {
   lineId: string;
-  quantity: number;
+  quantity: Quantity;
   net: string;
   tax: string;
   gross: string;

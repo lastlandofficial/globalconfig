@@ -1,3 +1,5 @@
+import { calculationEngine } from "./billing";
+import type { BillingPolicy } from "./types";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 import { dateOnly, freeze } from "../internal";
@@ -172,16 +174,16 @@ export function createReviewedTaxProvider(
 }
 export interface ComplianceLock {
   version: 1;
-  engine: "glocon-order-1";
+  engine: "glocon-order-1" | "glocon-order-2";
   ruleRevision: string;
   rulesDigest: string;
   configDigest: string;
 }
 export const createComplianceLock = (
-  config: unknown & { rules: RulePack },
+  config: unknown & { rules: RulePack; billing?: BillingPolicy },
 ): ComplianceLock => ({
   version: 1,
-  engine: "glocon-order-1",
+  engine: calculationEngine(config),
   ruleRevision: config.rules.revision,
   rulesDigest: digest(config.rules),
   configDigest: digest(config),

@@ -15,4 +15,12 @@ export {
   digest,
   type ComplianceLock,
 } from "./rules";
-export { createComplianceExample } from "./example";
+export {
+  createComplianceExample,
+  createMeteredComplianceExample,
+} from "./example";
+export {
+  checkFinancialCases,
+  type FinancialCase,
+  type FinancialCheckOptions,
+} from "./check";

@@ -5,8 +5,8 @@
 glocon brings UI components, UI audits, state contracts, framework integrations, and country utilities into globalconfig. Use it in React, Next.js, React Native, Electron, or Node.js. Government-source privacy and tax workflows remain one part of the toolkit.
 
 | Need | Import or command |
-| Tax, invoice drafts, financial credits and source review | `glocon/compliance` + `glocon compliance check` |
 | --- | --- |
+| Tax, invoice drafts, financial credits and source review | `glocon/compliance` + `glocon compliance check` |
 | Accessible React primitives and async views | `glocon/react` + `glocon/styles.css` |
 | UI snapshots, rules, and state contracts | `glocon/ui` |
 | Set up and run project checks | `glocon init --ui` + `glocon check` |
@@ -24,7 +24,7 @@ Authentication and additional service integrations are part of the product direc
 
 ## Install
 
-The globalconfig library is published on npm as `glocon`.
+The package name is `glocon`. This checkout contains the **0.7.0 release candidate**. As verified on 2026-10-08, npm `latest` is **0.5.0**; the commands below install that older release. The 0.6.0 financial release is available as an immutable [GitHub tarball](https://github.com/lastlandofficial/globalconfig/releases/download/glocon-v0.6.0/glocon-0.6.0.tgz). Publication of 0.7.0 is pending.
 
 ```sh
 npm install glocon
@@ -35,18 +35,22 @@ bun add glocon
 
 These package managers share the npm registry; there is no separate Bun or pnpm publication step. ESM, CommonJS, and TypeScript declarations are included. Consumers do not need build tools or install scripts.
 
+For the current checkout, run `npm ci && npm run build && npm pack`, then install the resulting `glocon-0.7.0.tgz` in your app. UI setup preserves an existing tarball dependency.
+
 Prebuilt tarballs are also available from [GitHub releases](https://github.com/lastlandofficial/globalconfig/releases). See [publishing](docs/publishing.md) for the release workflow.
 
-## Tax and invoice workflows (new in 0.6.0)
+## Tax and invoice workflows (introduced in 0.6.0)
 
-Configure reviewed business/product decisions once, calculate complete orders, validate invoice drafts, and check exact financial results in CI. Includes mixed rates, discounts, country-specific rounding, reproducible snapshots, and an optional transactional SQLite store for invoice numbers and financial credits.
+These commands require the financial 0.6.0 tarball or the locally built 0.7.0 candidate. Use your locally installed `glocon` binary; `npx --no-install glocon` prevents fetching the older registry version.
+
+Configure reviewed business/product decisions once, calculate complete orders, validate invoice drafts, and check exact financial results in CI. In 0.7.0, `compliance check` requires a successful invoice fixture with reviewed expected net, tax and gross amounts; use `--scope quotes` for an explicitly quote-only project. Includes mixed rates, discounts, country-specific rounding, reproducible snapshots, and an optional transactional SQLite store for invoice numbers and financial credits.
 
 ```sh
-npx glocon compliance init --country JP --demo
-npx glocon compliance check
-npx glocon tax quote glocon.examples/order.json
-npx glocon invoice create glocon.examples/order.json --details glocon.examples/invoice-details.json --output invoice.json
-npx glocon invoice render invoice.json --output invoice.html
+npx --no-install glocon compliance init --country JP --demo
+npx --no-install glocon compliance check
+npx --no-install glocon tax quote glocon.examples/order.json
+npx --no-install glocon invoice create glocon.examples/order.json --details glocon.examples/invoice-details.json --output invoice.json
+npx --no-install glocon invoice render invoice.json --output invoice.html
 ```
 
 `--demo` uses explicitly fictional data. Omit it for a production template with unresolved decisions. Initial profiles cover selected ordinary India GST and Japan qualified-invoice checks, plus a California rate-decision reference. Drafts and financial credits still require applicable business review and external issuance steps; the package does not classify products, file taxes, or register e-invoices.

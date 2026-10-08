@@ -1,31 +1,89 @@
-import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { buildSync } from 'esbuild';
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import {
+  readFileSync,
+  existsSync,
+  mkdtempSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { buildSync } from "esbuild";
 
-const root = resolve(import.meta.dirname, '..');
-const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const root = resolve(import.meta.dirname, "..");
+const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 for (const entry of Object.values(manifest.exports)) {
-  if (typeof entry === 'string') { assert.ok(existsSync(join(root, entry))); continue; }
-  for (const target of Object.values(entry)) for (const file of Object.values(target)) assert.ok(existsSync(join(root, file)), `Missing export: ${file}`);
+  if (typeof entry === "string") {
+    assert.ok(existsSync(join(root, entry)));
+    continue;
+  }
+  for (const target of Object.values(entry))
+    for (const file of Object.values(target))
+      assert.ok(existsSync(join(root, file)), `Missing export: ${file}`);
 }
-const temp = mkdtempSync(join(tmpdir(), 'globalconfig-package-'));
+const temp = mkdtempSync(join(tmpdir(), "globalconfig-package-"));
 try {
-  const packed = JSON.parse(execFileSync('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', temp], { cwd: root, encoding: 'utf8' }))[0];
-  assert.ok(packed.files.some(file => file.path === 'LICENSE'));
-  assert.ok(packed.files.some(file => file.path === 'bin/glocon.mjs'));
-  assert.ok(!packed.files.some(file => /(^|\/)(\.env|\.npmrc|node_modules)/.test(file.path)));
-  writeFileSync(join(temp, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
-  execFileSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(temp, packed.filename)], { cwd: temp, stdio: 'pipe' });
-  writeFileSync(join(temp, 'finance-browser.js'), `import {calculateOrder,createComplianceExample} from 'glocon/compliance'; const e=createComplianceExample('JP'); globalThis.gloconFinancialResult=calculateOrder(e.config,e.order);`);
-  buildSync({entryPoints:[join(temp,'finance-browser.js')],bundle:true,platform:'browser',format:'iife',outfile:join(temp,'finance-bundle.js')});
-  const installedCli = join(temp, 'node_modules/glocon/bin/glocon.mjs');
-  assert.equal(execFileSync(process.execPath, [installedCli, '--version'], { encoding: 'utf8' }).trim(), manifest.version);
-  execFileSync(process.execPath, [installedCli, 'init', '--country', 'IN', '--dir', temp, '--no-install'], { stdio: 'pipe' });
-  const plan = JSON.parse(execFileSync(process.execPath, [installedCli, 'plan', '--dir', temp, '--json'], { encoding: 'utf8' }));
-  assert.equal(plan.country, 'IN');
+  const packed = JSON.parse(
+    execFileSync(
+      "npm",
+      ["pack", "--ignore-scripts", "--json", "--pack-destination", temp],
+      { cwd: root, encoding: "utf8" },
+    ),
+  )[0];
+  assert.ok(packed.files.some((file) => file.path === "LICENSE"));
+  assert.ok(packed.files.some((file) => file.path === "bin/glocon.mjs"));
+  assert.ok(
+    !packed.files.some((file) =>
+      /(^|\/)(\.env|\.npmrc|node_modules)/.test(file.path),
+    ),
+  );
+  writeFileSync(
+    join(temp, "package.json"),
+    JSON.stringify({ private: true, type: "module" }),
+  );
+  execFileSync(
+    "npm",
+    [
+      "install",
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      join(temp, packed.filename),
+    ],
+    { cwd: temp, stdio: "pipe" },
+  );
+  writeFileSync(
+    join(temp, "finance-browser.js"),
+    `import {calculateOrder,createComplianceExample} from 'glocon/compliance'; const e=createComplianceExample('JP'); globalThis.gloconFinancialResult=calculateOrder(e.config,e.order);`,
+  );
+  buildSync({
+    entryPoints: [join(temp, "finance-browser.js")],
+    bundle: true,
+    platform: "browser",
+    format: "iife",
+    outfile: join(temp, "finance-bundle.js"),
+  });
+  const installedCli = join(temp, "node_modules/glocon/bin/glocon.mjs");
+  assert.equal(
+    execFileSync(process.execPath, [installedCli, "--version"], {
+      encoding: "utf8",
+    }).trim(),
+    manifest.version,
+  );
+  execFileSync(
+    process.execPath,
+    [installedCli, "init", "--country", "IN", "--dir", temp, "--no-install"],
+    { stdio: "pipe" },
+  );
+  const plan = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [installedCli, "plan", "--dir", temp, "--json"],
+      { encoding: "utf8" },
+    ),
+  );
+  assert.equal(plan.country, "IN");
   assert.ok(plan.questions.length > 0);
   const smoke = `import assert from 'node:assert/strict';
 import { createGlobalConfig } from 'glocon';
@@ -41,8 +99,11 @@ for (const entry of ['countries', 'currency', 'time', 'tax', 'laws', 'compliance
   assert.ok(Object.keys(await import('glocon/' + entry)).length);
   assert.ok(Object.keys(require('glocon/' + entry)).length);
 }`;
-  writeFileSync(join(temp, 'smoke.mjs'), smoke);
-  execFileSync(process.execPath, ['smoke.mjs'], { cwd: temp, stdio: 'inherit' });
+  writeFileSync(join(temp, "smoke.mjs"), smoke);
+  execFileSync(process.execPath, ["smoke.mjs"], {
+    cwd: temp,
+    stdio: "inherit",
+  });
   const consumer = `import { createGlobalConfig, calculateTax, type LawTopic, type GlobalConfig, type GlobalConfigOptions, type CountryTaxOptions, type AppFact, type ReviewStatus } from 'glocon';
 import configured from './globalconfig.cjs';
 import { globalconfig as frontend } from './globalconfig.js';
@@ -102,22 +163,79 @@ configuredFacts.laws.plan({ facts: { madeUp: true } });
 // @ts-expect-error Facts require boolean answers
 createGlobalConfig({ country: 'IN', facts: { collectsPersonalData: 'yes' } });
 `;
-  for (const extension of ['mts', 'cts']) {
+  for (const extension of ["mts", "cts"]) {
     const file = `consumer.${extension}`;
     writeFileSync(join(temp, file), consumer);
-    execFileSync(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--noEmit', '--strict', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', file], { cwd: temp, stdio: 'inherit' });
+    execFileSync(
+      process.execPath,
+      [
+        join(root, "node_modules/typescript/bin/tsc"),
+        "--noEmit",
+        "--strict",
+        "--target",
+        "ES2022",
+        "--module",
+        "NodeNext",
+        "--moduleResolution",
+        "NodeNext",
+        file,
+      ],
+      { cwd: temp, stdio: "inherit" },
+    );
   }
   const bundled = buildSync({
-    entryPoints: [join(temp, 'globalconfig.js')], bundle: true, platform: 'browser', format: 'esm',
-    outfile: join(temp, 'browser-bundle.mjs'), metafile: true, logLevel: 'silent',
+    entryPoints: [join(temp, "globalconfig.js")],
+    bundle: true,
+    platform: "browser",
+    format: "esm",
+    outfile: join(temp, "browser-bundle.mjs"),
+    metafile: true,
+    logLevel: "silent",
   });
-  assert.ok(Object.values(bundled.metafile.outputs).every(output => output.imports.length === 0), 'Frontend bundle must not require Node modules or external runtime imports');
-  execFileSync(process.execPath, ['--input-type=module', '-e', "const {globalconfig} = await import('./browser-bundle.mjs'); if (globalconfig.currency.toMinorUnits('1.25') !== 125n) throw new Error('Frontend bundle failed');"], { cwd: temp, stdio: 'inherit' });
-  const prefix = join(temp, 'global-install');
-  execFileSync('npm', ['install', '--global', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', join(temp, packed.filename)], { stdio: 'pipe' });
-  const bin = process.platform === 'win32' ? join(prefix, 'glocon.cmd') : join(prefix, 'bin/glocon');
-  assert.equal(execFileSync(bin, ['--version'], { encoding: 'utf8', shell: process.platform === 'win32' }).trim(), manifest.version);
-  console.log(`Package verified: ${packed.filename} (${packed.size} bytes), isolated install, ESM/CJS, TypeScript consumers, generated frontend bundle, and global CLI.`);
+  assert.ok(
+    Object.values(bundled.metafile.outputs).every(
+      (output) => output.imports.length === 0,
+    ),
+    "Frontend bundle must not require Node modules or external runtime imports",
+  );
+  execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      "const {globalconfig} = await import('./browser-bundle.mjs'); if (globalconfig.currency.toMinorUnits('1.25') !== 125n) throw new Error('Frontend bundle failed');",
+    ],
+    { cwd: temp, stdio: "inherit" },
+  );
+  const prefix = join(temp, "global-install");
+  execFileSync(
+    "npm",
+    [
+      "install",
+      "--global",
+      "--prefix",
+      prefix,
+      "--ignore-scripts",
+      "--no-audit",
+      "--no-fund",
+      join(temp, packed.filename),
+    ],
+    { stdio: "pipe" },
+  );
+  const bin =
+    process.platform === "win32"
+      ? join(prefix, "glocon.cmd")
+      : join(prefix, "bin/glocon");
+  assert.equal(
+    execFileSync(bin, ["--version"], {
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    }).trim(),
+    manifest.version,
+  );
+  console.log(
+    `Package verified: ${packed.filename} (${packed.size} bytes), isolated install, ESM/CJS, TypeScript consumers, generated frontend bundle, and global CLI.`,
+  );
 } finally {
   rmSync(temp, { recursive: true, force: true });
 }

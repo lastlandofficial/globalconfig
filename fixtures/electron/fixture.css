@@ -1,0 +1,5 @@
+body { font-family: system-ui; margin: 24px; color: #18181b; background: #fff; }
+main { max-width: 480px; }
+button { min-height: 44px; }
+[hidden] { display: none !important; }
+#browser-result { overflow-wrap: anywhere; }
