@@ -4,6 +4,7 @@ import { createWriteStream } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
@@ -140,12 +141,20 @@ async function check(name, executable, argv, timeout = 1200000) {
 }
 
 try {
-  const all = await check("check-all", "npm", ["run", "check:all"]);
+  const all = stripVTControlCharacters(
+    await check("check-all", "npm", ["run", "check:all"]),
+  );
   evidence.validation.tests = {
-    node: Number(all.match(/# tests (\d+)/)?.[1] ?? 0),
+    node: Number(all.match(/(?:#|ℹ)\s+tests\s+(\d+)/)?.[1] ?? 0),
     unit: Number(all.match(/Tests\s+(\d+) passed/)?.[1] ?? 0),
     browser: Number(all.match(/\b(\d+) passed \([\d.]+s\)/)?.[1] ?? 0),
   };
+  for (const [suite, count] of Object.entries(evidence.validation.tests)) {
+    if (!Number.isSafeInteger(count) || count < 1)
+      throw Error(
+        `Cannot verify ${suite} test count; inspect .glocon/release/check-all.log for an unsupported test summary.`,
+      );
+  }
   await check("frameworks", "npm", ["run", "test:frameworks"]);
   await check("format", "npm", ["run", "format:check"]);
   const minimum = pkg.engines.node.match(/^>=(\d+\.\d+\.\d+)$/)?.[1];
