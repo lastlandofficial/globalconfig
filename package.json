@@ -1,7 +1,7 @@
 {
   "name": "glocon",
   "version": "0.7.0",
-  "description": "globalconfig: government-backed tax and invoice workflows, project UI checks, React components, and country utilities for JavaScript and TypeScript.",
+  "description": "globalconfig: selected government-source tax and invoice workflows, project UI checks, React components, and country utilities for JavaScript and TypeScript.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -186,19 +186,19 @@
     "**/*.css"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=20.3.0"
   },
   "scripts": {
     "build": "node scripts/clean.mjs && tsup",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test test/*.test.mjs && vitest run",
-    "check": "npm run typecheck && npm test && node scripts/check-package.mjs && npm run check:bundles",
+    "check": "npm run typecheck && npm test && node scripts/check-package.mjs && npm run check:bundles && npm run check:docs",
     "prepack": "npm run build",
     "prepublishOnly": "npm run check:all && npm run test:frameworks && npm audit --audit-level=moderate",
     "example": "npm run build && node examples/quickstart.mjs",
     "test:browser": "playwright test",
     "test:ui-package": "node scripts/ui-package-smoke.mjs",
-    "check:all": "npm run check && npm run test:browser && npm run test:ui-package",
+    "check:all": "npm run check && npm run test:browser && npm run test:ui-package && npm run test:docs-workflows",
     "test:frameworks": "npm run build && node scripts/check-frameworks.mjs",
     "format": "prettier --write src test tests scripts bin *.ts",
     "format:check": "prettier --check src test tests scripts bin *.ts",
@@ -206,7 +206,11 @@
     "check:bundles": "node scripts/check-bundles.mjs",
     "test:browser:matrix": "node scripts/check-browser-matrix.mjs",
     "test:electron": "npm run build && node scripts/check-electron.mjs",
-    "test:native:android": "npm run build && node scripts/check-native.mjs"
+    "test:native:android": "npm run build && node scripts/check-native.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
+    "test:docs-workflows": "node scripts/check-docs-workflows.mjs",
+    "test:minimum-runtime": "node scripts/check-minimum-runtime.mjs",
+    "release:verify": "node scripts/verify-release.mjs"
   },
   "repository": {
     "type": "git",
@@ -249,20 +253,22 @@
     "decimal.js": "^10.6.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
     "@playwright/test": "^1.58.2",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
     "esbuild": "^0.28.2",
     "playwright": "^1.58.2",
+    "prettier": "^3.6.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.11",
     "vite": "^6.4.2",
-    "prettier": "^3.6.2",
-    "@axe-core/playwright": "^4.10.2"
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "tsup": {
@@ -270,9 +276,9 @@
     }
   },
   "peerDependencies": {
+    "@axe-core/playwright": ">=4.10.0 <5",
     "playwright": ">=1.50.0 <2",
-    "react": ">=18.0.0 <20",
-    "@axe-core/playwright": ">=4.10.0 <5"
+    "react": ">=18.0.0 <20"
   },
   "peerDependenciesMeta": {
     "playwright": {

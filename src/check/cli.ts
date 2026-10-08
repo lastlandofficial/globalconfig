@@ -18,7 +18,8 @@ const help = `glocon — project UI checks
 Shared: --dir <app> --help
 Setup:  --url <origin> --command <start command> --pages /,/checkout
         --package-manager npm|pnpm|yarn|bun --no-install --no-ci
-Checks: --config <file> (default glocon.check.json)
+        --no-screenshots --ci-artifacts [--ci-screenshots] [--artifact-retention-days 1..90]
+Checks: --config <file> (default glocon.check.json) --quiet (hide stderr progress)
 Baseline: --config <file> --expires YYYY-MM-DD (default: 30 days)
 
 Reports: .glocon/report.html and .glocon/report.json
@@ -37,6 +38,7 @@ export async function runCheckCommand(args: string[], version: string) {
       config: { type: "string" },
       json: { type: "boolean" },
       example: { type: "boolean" },
+      quiet: { type: "boolean" },
       ui: { type: "boolean" },
       url: { type: "string" },
       command: { type: "string" },
@@ -44,6 +46,10 @@ export async function runCheckCommand(args: string[], version: string) {
       "package-manager": { type: "string" },
       "no-install": { type: "boolean" },
       "no-ci": { type: "boolean" },
+      "no-screenshots": { type: "boolean" },
+      "ci-artifacts": { type: "boolean" },
+      "ci-screenshots": { type: "boolean" },
+      "artifact-retention-days": { type: "string" },
       reason: { type: "string" },
       expires: { type: "string" },
     },
@@ -73,11 +79,15 @@ export async function runCheckCommand(args: string[], version: string) {
           "package-manager",
           "no-install",
           "no-ci",
+          "no-screenshots",
+          "ci-artifacts",
+          "ci-screenshots",
+          "artifact-retention-days",
         ]
       : command === "baseline"
         ? ["config", "reason", "expires"]
         : command === "check"
-          ? ["config", "json", "example"]
+          ? ["config", "json", "example", "quiet"]
           : ["config"];
   for (const key of Object.keys(values))
     if (!["dir", "help", "version", ...supported].includes(key))
@@ -95,6 +105,12 @@ export async function runCheckCommand(args: string[], version: string) {
         : {}),
       ...(values["no-install"] ? { noInstall: true } : {}),
       ...(values["no-ci"] ? { noCI: true } : {}),
+      ...(values["no-screenshots"] ? { noScreenshots: true } : {}),
+      ...(values["ci-artifacts"] ? { ciArtifacts: true } : {}),
+      ...(values["ci-screenshots"] ? { ciScreenshots: true } : {}),
+      ...(values["artifact-retention-days"] !== undefined
+        ? { artifactRetentionDays: Number(values["artifact-retention-days"]) }
+        : {}),
     });
     return;
   }
@@ -121,7 +137,17 @@ export async function runCheckCommand(args: string[], version: string) {
     );
     return;
   }
-  const report = await runChecks(config, { dir });
+  const report = await runChecks(config, {
+    dir,
+    ...(values.quiet
+      ? {}
+      : {
+          onProgress: (progress) =>
+            process.stderr.write(
+              `glocon check: ${progress.completed}/${progress.total} checks finished (${progress.status}).\n`,
+            ),
+        }),
+  });
   console.log(
     values.json
       ? JSON.stringify(report, null, 2)

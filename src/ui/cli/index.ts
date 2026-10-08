@@ -5,6 +5,7 @@ import type { PageAuditOptions } from "../playwright/index";
 import { rules } from "../core/engine";
 import { formatReport, shouldFail } from "../core/report";
 import type { Severity } from "../core/types";
+import { createDeadline } from "../playwright/deadline";
 
 const help = `glocon UI — Explainable UI and UX checks
 
@@ -22,7 +23,7 @@ Audit options:
   --expected-url <url>  Explicit destination when the requested URL redirects
   --allow-truncated    Accept partial DOM collection, disclosed in coverage
   --max-elements <n>   DOM collection cap (default 10000)
-  --timeout <ms>        Navigation/readiness timeout (default 30000)
+  --timeout <ms>        Total browser/navigation/audit budget (default 30000)
   --fail-on <level>     error | warning | info | none (default error)
   --no-a11y             Skip axe accessibility checks
 
@@ -306,57 +307,89 @@ export async function runUICommand(args: string[], version: string) {
     (!Number.isSafeInteger(maxElements) || maxElements < 1)
   )
     throw new Error("--max-elements must be a positive integer.");
+  const deadline = createDeadline(timeout, "UI audit");
   let playwright: typeof import("playwright");
+  playwright = await deadline.run("browser tooling setup", () =>
+    import("playwright").catch(() => {
+      throw new Error(
+        "Install the optional browser runner: npm install -D playwright && npx playwright install chromium",
+      );
+    }),
+  );
+  const { auditPage } = await deadline.run(
+    "audit tooling setup",
+    () => import("../playwright/index"),
+  );
+  const launch = playwright.chromium.launch({
+    timeout: deadline.remaining("browser launch"),
+  });
+  let browser: Awaited<typeof launch>;
   try {
-    playwright = await import("playwright");
-  } catch {
-    throw new Error(
-      "Install the optional browser runner: npm install -D playwright && npx playwright install chromium",
-    );
+    browser = await deadline.run("browser launch", () => launch);
+  } catch (error) {
+    // A launch completing just after the deadline must not leave a browser behind.
+    void launch.then((launched) => launched.close()).catch(() => {});
+    throw error;
   }
-  const { auditPage } = await import("../playwright/index");
-  const browser = await playwright.chromium.launch();
   try {
-    const context = await browser.newContext({ viewport });
-    const page = await context.newPage();
-    page.setDefaultTimeout(timeout);
-    const response = await page.goto(url.href, {
-      waitUntil: "domcontentloaded",
-      timeout,
-    });
+    const context = await deadline.run("browser context", () =>
+      browser.newContext({ viewport }),
+    );
+    const page = await deadline.run("browser page", () => context.newPage());
+    page.setDefaultTimeout(deadline.remaining("navigation"));
+    const response = await deadline.run("navigation", () =>
+      page.goto(url.href, {
+        waitUntil: "domcontentloaded",
+        timeout: deadline.remaining("navigation"),
+      }),
+    );
     if (response && !response.ok())
       throw new Error(
         `Page returned HTTP ${response.status()}. Audit your intended page, not an error response.`,
       );
+    const isExpectedDestination = (actual: URL) =>
+      actual.origin === expected.origin &&
+      actual.pathname.replace(/\/$/, "") ===
+        expected.pathname.replace(/\/$/, "") &&
+      actual.search === expected.search &&
+      actual.hash === expected.hash;
     const verifyDestination = () => {
-      const actual = new URL(page.url());
-      if (
-        actual.origin !== expected.origin ||
-        actual.pathname.replace(/\/$/, "") !==
-          expected.pathname.replace(/\/$/, "") ||
-        actual.search !== expected.search ||
-        actual.hash !== expected.hash
-      )
+      if (!isExpectedDestination(new URL(page.url())))
         throw new Error(
           "The requested page redirected to an unexpected destination. Use --expected-url for a reviewed destination and --ready to verify the intended state.",
         );
     };
-    verifyDestination();
-    const report = await auditPage(page, {
-      ...config,
-      timeout,
-      ...(maxElements === undefined ? {} : { maxElements }),
-      ...(values["allow-truncated"]
-        ? { coveragePolicy: "allow-truncated" }
-        : {}),
-      ...(values["no-a11y"] ? { accessibility: false } : {}),
-      ...(values.ready !== undefined ? { readySelector: values.ready } : {}),
-    });
+    if (
+      values["expected-url"] !== undefined ||
+      config.expectedURL !== undefined
+    )
+      await deadline.run("expected destination", () =>
+        page.waitForURL(isExpectedDestination, {
+          waitUntil: "domcontentloaded",
+          timeout: deadline.remaining("expected destination"),
+        }),
+      );
+    else verifyDestination();
+    const report = await deadline.run("page audit", () =>
+      auditPage(page, {
+        ...config,
+        timeout: deadline.remaining("page audit"),
+        ...(maxElements === undefined ? {} : { maxElements }),
+        ...(values["allow-truncated"]
+          ? { coveragePolicy: "allow-truncated" }
+          : {}),
+        ...(values["no-a11y"] ? { accessibility: false } : {}),
+        ...(values.ready !== undefined ? { readySelector: values.ready } : {}),
+      }),
+    );
     verifyDestination();
     const output = values.json
       ? JSON.stringify(report, null, 2)
       : formatReport(report);
-    if (values.output) await writeFile(values.output, output + "\n");
+    if (values.output)
+      await deadline.run("report output", () =>
+        writeFile(values.output!, output + "\n"),
+      );
     else console.log(output);
     if (
       report.coverage.complete === false &&

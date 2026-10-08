@@ -1,5 +1,11 @@
-import { dateOnly, decimal, rounding } from "../internal";
-import { currencyDigits, getCountry } from "../countries";
+import {
+  assertDecimalInputLength,
+  dateOnly,
+  decimal,
+  rounding,
+} from "../internal";
+import type { CountryCode } from "../countries";
+import { ORDER_PROFILE_1 } from "./profiles";
 import type { ComplianceConfig, Order, Review, TreatmentRule } from "./types";
 import { quantityUnits } from "./billing";
 import type { BillingPolicy } from "./types";
@@ -12,7 +18,12 @@ export function keys(v: object, allowed: string[]) {
     if (!allowed.includes(key)) throw Error(`Unknown field: ${key}`);
 }
 export function text(v: unknown, label: string): asserts v is string {
-  if (typeof v !== "string" || !v.trim() || v.length > 10000)
+  if (
+    typeof v !== "string" ||
+    !v.trim() ||
+    v.length > 20000 ||
+    Array.from(v).length > 10000
+  )
     throw Error(`${label} must be a non-empty string (max 10000 characters).`);
 }
 export function choice(v: unknown, values: readonly string[], label: string) {
@@ -34,7 +45,10 @@ export function unique(items: { id: string }[]) {
 }
 export function money(value: unknown, digits: number, label: string) {
   if (typeof value !== "string")
-    throw Error(`${label} must be a decimal string.`);
+    throw Error(`${label} must be an unsigned plain decimal string.`);
+  assertDecimalInputLength(value, label);
+  if (!/^\d+(?:\.\d+)?$/.test(value))
+    throw Error(`${label} must be an unsigned plain decimal string.`);
   const n = decimal(value, label);
   if (n.isNegative() || n.decimalPlaces() > digits)
     throw Error(
@@ -44,13 +58,18 @@ export function money(value: unknown, digits: number, label: string) {
 }
 export function review(value: unknown): asserts value is Review {
   obj(value);
-  keys(value, ["by", "on", "after", "reference"]);
+  keys(value, ["by", "on", "after", "reference", "appliesFrom"]);
   text(value.by, "Reviewer");
   text(value.reference, "Review reference");
   dateOnly(value.on as string);
   dateOnly(value.after as string);
   if (String(value.after) <= String(value.on))
     throw Error("Review deadline must follow review date.");
+  if (value.appliesFrom !== undefined) {
+    dateOnly(value.appliesFrom as string);
+    if (String(value.appliesFrom) >= String(value.after))
+      throw Error("Review applicability start must precede its deadline.");
+  }
 }
 export function validateComplianceConfig(input: unknown): ComplianceConfig {
   obj(input);
@@ -122,7 +141,7 @@ export function validateComplianceConfig(input: unknown): ComplianceConfig {
       throw Error("indiaRounding requires an India business.");
     choice(input.indiaRounding, ["components", "combined"], "indiaRounding");
   }
-  const digits = currencyDigits(getCountry(String(b.country)).currency);
+  const digits = ORDER_PROFILE_1.countries[b.country as CountryCode].digits;
   if (input.billing !== undefined) {
     obj(input.billing);
     keys(input.billing, [
@@ -176,6 +195,7 @@ export function validateComplianceConfig(input: unknown): ComplianceConfig {
       "provision",
       "reviewedOn",
       "reviewAfter",
+      "reviewAppliesFrom",
       "scope",
     ]);
     for (const k of ["id", "title", "source", "provision", "scope"])
@@ -187,6 +207,13 @@ export function validateComplianceConfig(input: unknown): ComplianceConfig {
     dateOnly(r.reviewAfter as string);
     if (String(r.reviewAfter) <= String(r.reviewedOn))
       throw Error("Requirement reviewAfter must follow reviewedOn.");
+    if (r.reviewAppliesFrom !== undefined) {
+      dateOnly(r.reviewAppliesFrom as string);
+      if (String(r.reviewAppliesFrom) >= String(r.reviewAfter))
+        throw Error(
+          "Requirement review applicability start must precede reviewAfter.",
+        );
+    }
   }
   unique(input.rules.requirements as { id: string }[]);
   for (const r of input.rules.treatments) {
@@ -285,7 +312,11 @@ export function validateTreatment(r: unknown): asserts r is TreatmentRule {
     ["taxable", "zero-rated", "exempt", "out-of-scope"],
     "treatment",
   );
-  if (typeof r.rate !== "string") throw Error("Rate must be a decimal string.");
+  if (typeof r.rate !== "string")
+    throw Error("Rate must be an unsigned plain decimal string.");
+  assertDecimalInputLength(r.rate, "Rate");
+  if (!/^\d+(?:\.\d+)?$/.test(r.rate))
+    throw Error("Rate must be an unsigned plain decimal string.");
   const rate = decimal(r.rate);
   if (rate.lt(0) || rate.gt(100)) throw Error("Rate must be 0–100 percent.");
   if ((r.treatment === "taxable") !== rate.gt(0))

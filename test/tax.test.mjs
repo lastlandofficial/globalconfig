@@ -209,3 +209,55 @@ test("rate manager validates dates, isolates input, and enforces exclusive expir
   assert.throws(() => manager.getRate("missing", "2026-01-01"), /Unknown/);
   assert.throws(() => manager.register(rule), /Duplicate/);
 });
+
+test("tax calculations reject outputs beyond the common monetary range", () => {
+  const amount = "9".repeat(30) + ".99";
+  assert.throws(
+    () =>
+      calculateTax({
+        country: "US",
+        amount,
+        rate: 10,
+        jurisdiction: "Example district",
+      }),
+    /Tax gross.*below 1e30/,
+  );
+  assert.throws(
+    () =>
+      calculateTax({ country: "IN", amount, rate: 100, supply: "intra-state" }),
+    /Tax amount.*below 1e30/,
+  );
+  const inclusive = calculateTax({
+    country: "US",
+    amount,
+    rate: 10,
+    jurisdiction: "Example district",
+    inclusive: true,
+  });
+  assert.equal(inclusive.gross, amount);
+  const untaxed = calculateTax({
+    country: "US",
+    amount,
+    rate: 0,
+    jurisdiction: "Example district",
+  });
+  assert.equal(untaxed.gross, amount);
+  assert.equal(
+    calculateProgressiveTax({
+      taxableIncome: amount,
+      currency: "USD",
+      brackets: [{ upTo: null, rate: 100 }],
+    }).tax,
+    amount,
+  );
+  assert.throws(
+    () =>
+      calculateTax({
+        country: "US",
+        amount: "0".repeat(1024) + "1",
+        rate: 0,
+        jurisdiction: "Example district",
+      }),
+    /at most 1024 characters/,
+  );
+});

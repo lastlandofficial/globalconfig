@@ -6,6 +6,8 @@ export interface Review {
   on: string;
   after: string;
   reference: string;
+  /** First transaction date covered by this review; defaults to the date the review occurred. */
+  appliesFrom?: string;
 }
 export interface BusinessProfile {
   id: string;
@@ -53,6 +55,8 @@ export interface Requirement {
   provision: string;
   reviewedOn: string;
   reviewAfter: string;
+  /** First covered transaction date; defaults to reviewedOn. Allows explicit retrospective review. */
+  reviewAppliesFrom?: string;
   scope: string;
 }
 export interface RulePack {
@@ -149,7 +153,9 @@ export interface TaxGroup {
   components: { name: string; rate: string; amount: string }[];
 }
 export interface Calculation {
-  engine: "glocon-order-1" | "glocon-order-2";
+  engine: "glocon-order-1" | "glocon-order-2" | "glocon-order-3";
+  /** Required for engine 3; older engines implicitly use the original pinned profile. */
+  profile?: "glocon-ordinary-domestic-1";
   currency: CurrencyCode;
   country: CountryCode;
   lines: CalculatedLine[];
@@ -197,15 +203,13 @@ export interface CreditLine {
   gross: string;
   rate: string;
 }
-export interface CreditNoteDraft {
+interface CreditNoteBase {
   kind: "credit-note";
-  version: 1;
   status: "draft";
   originalDigest: string;
   originalNumber: string;
   originalDate: string;
   request: CreditRequest;
-  previousDigests: string[];
   lines: CreditLine[];
   net: string;
   tax: string;
@@ -213,6 +217,19 @@ export interface CreditNoteDraft {
   digest: string;
   /** Financial allocation only; full statutory credit-note issuance is a separate validation. */
   legalStatus: "review-required";
+}
+export interface CreditNoteDraftV1 extends CreditNoteBase {
+  version: 1;
+  previousDigests: string[];
+}
+export interface CreditNoteDraftV2 extends CreditNoteBase {
+  version: 2;
+  previousDigest: string | null;
+  historyLength: number;
+}
+export type CreditNoteDraft = CreditNoteDraftV1 | CreditNoteDraftV2;
+export interface CreditNoteOptions {
+  version?: 1 | 2;
 }
 export interface TaxProvider {
   id: string;

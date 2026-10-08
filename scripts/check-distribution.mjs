@@ -10,6 +10,39 @@ const exec = promisify(execFile);
 const manifest = JSON.parse(
   await readFile(new URL("../package.json", import.meta.url), "utf8"),
 );
+const args = process.argv.slice(2);
+assert.ok(
+  args.every((arg) => arg === "--verified-candidate"),
+  "Only --verified-candidate is supported",
+);
+let candidate;
+if (args.includes("--verified-candidate")) {
+  candidate = JSON.parse(
+    await readFile(
+      new URL(`../glocon-${manifest.version}.release.json`, import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(candidate.package, manifest.name);
+  assert.equal(candidate.version, manifest.version);
+  assert.equal(candidate.status, "verified-local-candidate-unpublished");
+  assert.ok(candidate.validation.tasks.length > 0);
+  assert.ok(
+    candidate.validation.tasks.every((task) => task.status === "passed"),
+  );
+  assert.equal(candidate.archive, `${manifest.name}-${manifest.version}.tgz`);
+  const archive = await readFile(
+    new URL(`../${candidate.archive}`, import.meta.url),
+  );
+  assert.equal(
+    createHash("sha256").update(archive).digest("hex"),
+    candidate.archiveSha256,
+  );
+  assert.equal(
+    `sha512-${createHash("sha512").update(archive).digest("base64")}`,
+    candidate.integrity,
+  );
+}
 const registry = "https://registry.npmjs.org";
 const response = await fetch(`${registry}/${manifest.name}`, {
   signal: AbortSignal.timeout(30000),
@@ -37,6 +70,17 @@ assert.equal(
   integrity,
   "Registry tarball integrity mismatch",
 );
+if (candidate) {
+  assert.equal(
+    integrity,
+    candidate.integrity,
+    "Public archive differs from the locally tested release candidate",
+  );
+  assert.equal(
+    createHash("sha256").update(bytes).digest("hex"),
+    candidate.archiveSha256,
+  );
+}
 const directory = await mkdtemp(join(tmpdir(), "glocon-public-install-"));
 try {
   await writeFile(
@@ -91,7 +135,7 @@ try {
     directory,
   ]);
   console.log(
-    `Verified public latest ${manifest.version}, sha512 integrity, fresh npm install, financial exports and CLI workflow.`,
+    `Verified public latest ${manifest.version}, sha512 integrity${candidate ? ", exact tested archive" : ""}, fresh npm install, financial exports and CLI workflow.`,
   );
 } finally {
   await rm(directory, { recursive: true, force: true });

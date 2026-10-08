@@ -1,0 +1,61 @@
+name: Publish verified npm package
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: validate
+    if: github.repository == 'lastlandofficial/globalconfig' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: npm-release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Install npm with trusted-publishing support
+        run: npm install --global npm@11
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run release:verify
+      - name: Identify the verified archive
+        id: candidate
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync, appendFileSync } from 'node:fs';
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const manifest = `glocon-${pkg.version}.release.json`;
+          const evidence = JSON.parse(readFileSync(manifest, 'utf8'));
+          assert.equal(evidence.status, 'verified-local-candidate-unpublished');
+          assert.equal(evidence.gitCommit, process.env.GITHUB_SHA);
+          assert.equal(evidence.archive, `glocon-${pkg.version}.tgz`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `archive=${evidence.archive}\nmanifest=${manifest}\n`);
+          NODE
+      - name: Publish the tested archive through OIDC
+        run: npm publish "${{ steps.candidate.outputs.archive }}" --ignore-scripts --access public
+      - run: npm run check:distribution -- --verified-candidate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-release-evidence
+          path: |
+            glocon-*.tgz
+            glocon-*.release.json
+            .glocon/release/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30

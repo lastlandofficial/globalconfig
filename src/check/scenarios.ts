@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "playwright";
+import { expectedDestination } from "./destination";
 
 export type CheckStep =
   | { action: "click"; selector: string }
@@ -23,6 +24,8 @@ export interface CheckScenario {
   steps: CheckStep[];
   mocks?: CheckMock[];
   readySelector?: string;
+  /** Reviewed final destination after the configured steps. */
+  expectedURL?: string;
 }
 export interface StepResult {
   action: CheckStep["action"];
@@ -64,16 +67,33 @@ function jsonValue(v: unknown, seen = new Set<unknown>()): boolean {
 }
 export function validateScenarios(
   value: unknown,
+  baseURL?: string,
 ): asserts value is CheckScenario[] {
   if (!Array.isArray(value) || !value.length || value.length > 20)
     throw new Error("Configure 1–20 scenarios per page.");
   const names = new Set<string>();
   for (const scenario of value) {
     if (!object(scenario)) throw new Error("Each scenario must be an object.");
-    fields(scenario, ["name", "steps", "mocks", "readySelector"]);
+    fields(scenario, [
+      "name",
+      "steps",
+      "mocks",
+      "readySelector",
+      "expectedURL",
+    ]);
     if (!nonempty(scenario.name) || names.has(scenario.name))
       throw new Error("Scenario names must be non-empty and unique per page.");
     names.add(scenario.name);
+    if (scenario.expectedURL !== undefined) {
+      if (!nonempty(scenario.expectedURL))
+        throw new Error("Scenario expectedURL must be non-empty.");
+      const origin =
+        baseURL ??
+        (scenario.expectedURL.startsWith("/")
+          ? "http://glocon.test"
+          : new URL(scenario.expectedURL).origin);
+      expectedDestination(scenario.expectedURL, origin);
+    }
     if (
       scenario.readySelector !== undefined &&
       !nonempty(scenario.readySelector)

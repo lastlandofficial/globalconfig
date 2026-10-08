@@ -7,6 +7,7 @@ export const D = Decimal.clone({
 });
 export type Amount = string | number;
 export type RoundingMode = "half-up" | "half-even" | "down" | "up";
+export const MAX_DECIMAL_INPUT_LENGTH = 1024;
 const modes = {
   "half-up": Decimal.ROUND_HALF_UP,
   "half-even": Decimal.ROUND_HALF_EVEN,
@@ -21,6 +22,7 @@ export function rounding(mode: RoundingMode = "half-up"): Decimal.Rounding {
 }
 
 export function decimal(value: Amount, label = "amount"): Decimal {
+  if (typeof value === "string") assertDecimalInputLength(value, label);
   if (
     (typeof value !== "string" && typeof value !== "number") ||
     (typeof value === "string" && !/^[+-]?\d+(?:\.\d+)?$/.test(value))
@@ -40,6 +42,27 @@ export function decimal(value: Amount, label = "amount"): Decimal {
     );
   }
   return result;
+}
+
+/** Bound raw input before scanning or passing padded values to Decimal/BigInt. */
+export function assertDecimalInputLength(
+  value: string,
+  label = "amount",
+): void {
+  if (value.length > MAX_DECIMAL_INPUT_LENGTH)
+    throw new RangeError(
+      `${label} must have at most ${MAX_DECIMAL_INPUT_LENGTH} characters`,
+    );
+}
+
+/** Keep computed money compatible with formatting and minor-unit helpers. */
+export function assertMoneyOutput(
+  value: Decimal,
+  label = "Rounded money",
+): Decimal {
+  if (!value.isFinite() || value.abs().gte("1e30"))
+    throw new RangeError(`${label} must be finite with a magnitude below 1e30`);
+  return value;
 }
 
 export function nonNegative(value: Amount, label: string): Decimal {

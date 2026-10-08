@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   auditSnapshot,
   checkContract,
+  createReport,
   defineContract,
   fingerprint,
   shouldFail,
@@ -189,6 +190,59 @@ describe("report controls and custom rules", () => {
     expect(fingerprint("a", "bc")).not.toBe(fingerprint("ab", "c"));
     expect(shouldFail(first, "none")).toBe(false);
   });
+  it("preserves ASCII fingerprints and distinguishes supplementary Unicode targets", () => {
+    expect(fingerprint("contract/missing-ui", "x/loaded #save")).toBe(
+      "glocon-f45e8163",
+    );
+    const native = auditNative(
+      ["😀", "😁"].map((testID) => ({
+        testID,
+        accessibilityRole: "button",
+        frame: { x: 0, y: 0, width: 48, height: 48 },
+      })),
+      { width: 390, height: 844 },
+    );
+    expect(native.findings).toHaveLength(2);
+    expect(
+      new Set(native.findings.map((finding) => finding.fingerprint)).size,
+    ).toBe(2);
+  });
+  it("rejects invalid severities at every public audit entry point", () => {
+    const options = { rules: { "contract/missing-ui": "fatal" } } as never;
+    const contract = defineContract({
+      name: "save",
+      states: {
+        loaded: {
+          required: [{ selector: "#save", description: "save button" }],
+        },
+      },
+    });
+    expect(() => auditSnapshot(page, options)).toThrow("Invalid severity");
+    expect(() =>
+      checkContract(
+        contract,
+        { loaded: { visibleCounts: { "#save": 0 } } },
+        options,
+      ),
+    ).toThrow("Invalid severity");
+    expect(() =>
+      createReport(
+        "test",
+        [],
+        { rules: [], elements: 0, limitations: [] },
+        options,
+      ),
+    ).toThrow("Invalid severity");
+    const report = auditSnapshot(page);
+    expect(() =>
+      createReport(
+        report.source,
+        [{ ...report.findings[0]!, severity: "fatal" } as never],
+        report.coverage,
+      ),
+    ).toThrow("Invalid finding severity");
+    expect(() => shouldFail(report, "fatal" as never)).toThrow("threshold");
+  });
   it("rejects config typos, invalid thresholds, and unreasoned suppressions", () => {
     expect(() => auditSnapshot(page, { rules: { typo: "off" } })).toThrow(
       "Unknown rule",
@@ -224,6 +278,145 @@ describe("report controls and custom rules", () => {
     };
     expect(ids(auditSnapshot(page, {}, [rule]))).toContain("project/test");
     expect(() => auditSnapshot(page, {}, [rule, rule])).toThrow("unique");
+    expect(() =>
+      auditSnapshot(page, {}, [
+        { ...rule, meta: { ...rule.meta, severity: "fatal" } } as never,
+      ]),
+    ).toThrow("Invalid rule severity");
+    expect(() =>
+      auditSnapshot(page, {}, [
+        { ...rule, meta: { ...rule.meta, confidence: "certain" } } as never,
+      ]),
+    ).toThrow("Invalid rule confidence");
+    expect(() =>
+      auditSnapshot(page, {}, [
+        { ...rule, meta: { ...rule.meta, category: "security" } } as never,
+      ]),
+    ).toThrow("Invalid rule category");
+    expect(() =>
+      auditSnapshot(page, {}, [{ ...rule, meta: { ...rule.meta, id: " " } }]),
+    ).toThrow("non-empty id");
+  });
+  it("records actual rule outcomes before suppressions and skips disabled rules", () => {
+    const ruleId = "interaction/positive-tabindex";
+    const suppressed = auditSnapshot(page, {
+      suppressions: [{ ruleId, reason: "Tracked migration" }],
+    });
+    expect(suppressed.findings).toEqual([]);
+    expect(suppressed.coverage.outcomes).toContainEqual({
+      ruleId,
+      target: "#save",
+      status: "failed",
+    });
+    expect(suppressed.coverage.outcomes).toContainEqual({
+      ruleId: "layout/overflow",
+      status: "passed",
+    });
+    const inlineIgnored = auditSnapshot(
+      snapshot([element({ attributes: { tabindex: "3" }, ignore: [ruleId] })]),
+    );
+    expect(inlineIgnored.findings).toEqual([]);
+    expect(inlineIgnored.coverage.outcomes).toContainEqual({
+      ruleId,
+      target: "#save",
+      status: "failed",
+    });
+    const disabled = auditSnapshot(page, { rules: { [ruleId]: "off" } });
+    expect(
+      disabled.coverage.outcomes?.some((outcome) => outcome.ruleId === ruleId),
+    ).toBe(false);
+    const reprocessed = createReport(
+      suppressed.source,
+      suppressed.findings,
+      suppressed.coverage,
+    );
+    expect(reprocessed.coverage.outcomes).toEqual(suppressed.coverage.outcomes);
+  });
+  it("keeps element target lookups linear when a page has thousands of findings", () => {
+    const count = 2048;
+    let targetReads = 0;
+    const elements = Array.from({ length: count }, (_, index) => {
+      const control = element({ rect: { x: 0, y: 0, width: 12, height: 12 } });
+      Object.defineProperty(control, "target", {
+        get: () => {
+          targetReads++;
+          return `#control-${index}`;
+        },
+      });
+      return control;
+    });
+    const report = auditSnapshot(snapshot(elements));
+    expect(report.findings).toHaveLength(count);
+    expect(targetReads).toBeLessThan(count * 10);
+  });
+  it("does not invent element passes for custom rules with unknown applicability", () => {
+    const custom: Rule = {
+      meta: {
+        id: "project/external-state",
+        title: "External state requirement",
+        rationale: "The project defines the applicable targets.",
+        category: "ux",
+        severity: "error",
+        confidence: "high",
+      },
+      check: () => [],
+    };
+    const passed = auditSnapshot(snapshot([element()]), {}, [custom]);
+    expect(passed.coverage.targets).toEqual(["#save", "html"]);
+    expect(passed.coverage.targets).not.toContain("external-state");
+    expect(
+      passed.coverage.outcomes?.filter(
+        (outcome) => outcome.ruleId === custom.meta.id,
+      ),
+    ).toEqual([{ ruleId: custom.meta.id, status: "passed" }]);
+    const failed = auditSnapshot(snapshot([element()]), {}, [
+      {
+        ...custom,
+        check: () => [
+          {
+            target: "external-state",
+            message: "The external state is missing.",
+            evidence: {},
+            suggestion: "Enter the required state.",
+          },
+        ],
+      },
+    ]);
+    expect(
+      failed.coverage.outcomes?.filter(
+        (outcome) => outcome.ruleId === custom.meta.id,
+      ),
+    ).toEqual([
+      { ruleId: custom.meta.id, target: "external-state", status: "failed" },
+    ]);
+  });
+  it("records observed targets once and explicitly passes the checked web document", () => {
+    const clean = auditSnapshot(snapshot([element({ target: "#app" })]));
+    expect(clean.coverage.targets).toEqual(["#app", "html"]);
+    expect(clean.coverage.outcomes).toContainEqual({
+      ruleId: "layout/overflow",
+      target: "html",
+      status: "passed",
+    });
+    const removed = auditSnapshot(snapshot([]));
+    expect(removed.coverage.targets).toEqual(["html"]);
+    expect(removed.coverage.targets).not.toContain("#app");
+    const native = auditNative([], { width: 390, height: 844 });
+    expect(native.coverage.targets).toEqual([]);
+    const overflowing = auditSnapshot(
+      snapshot([], { document: { clientWidth: 390, scrollWidth: 500 } }),
+    );
+    expect(overflowing.coverage.targets).toEqual(["html"]);
+    expect(overflowing.coverage.outcomes).toContainEqual({
+      ruleId: "layout/overflow",
+      target: "html",
+      status: "failed",
+    });
+    expect(overflowing.coverage.outcomes).not.toContainEqual({
+      ruleId: "layout/overflow",
+      target: "html",
+      status: "passed",
+    });
   });
 });
 describe("state contracts", () => {

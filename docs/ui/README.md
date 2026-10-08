@@ -6,30 +6,22 @@ For automatic app startup, page/viewport checks, test-login reuse, reports, and 
 
 `glocon` is a testing library and a small UI library for JavaScript and TypeScript developers. Audit an existing app, detect measurable inconsistencies, declare missing-state requirements, and build common controls with better defaults. Findings explain **what happened, where, why it matters, and what to change**.
 
-Version **0.4.0**. MIT licensed. Local execution. No account, telemetry, API key, or LLM required.
-
-```sh
-npm install glocon
-# or
-pnpm add glocon
-bun add glocon
-yarn add glocon
-```
+This guide describes the **0.7.0 release candidate**; the project workflow was introduced in 0.4.0. MIT licensed. Local execution. No account, telemetry, API key, or LLM required. [Install the current candidate](../../README.md#install) and verify its local version before running the commands below.
 
 ## Audit your existing app
 
-For browser audits, install the optional Playwright runner and its browser once:
+For standalone browser audits, install both optional peers and Chromium once in the same application:
 
 ```sh
-npm install -D playwright
-npx playwright install chromium
+npm install -D playwright @axe-core/playwright
+npx --no-install playwright install chromium
 
 # Start your app in another terminal, then:
-npx glocon audit http://localhost:3000 --ready 'main'
-npx glocon audit http://localhost:3000 --viewport 390x844 --json
+npx --no-install glocon audit http://localhost:3000 --ready 'main'
+npx --no-install glocon audit http://localhost:3000 --viewport 390x844 --json
 ```
 
-With other package managers, use `pnpm exec glocon`, `bunx glocon`, or `yarn glocon` after installing the package. Install Playwright using your chosen manager as well.
+With other package managers, use `pnpm exec glocon`, `bun run glocon`, or `yarn glocon` after installing the package. Install both Playwright and `@axe-core/playwright` using your chosen manager as well. `glocon init --ui` installs both peers for project checks.
 
 ```text
 WARNING form/error-description [medium]
@@ -41,10 +33,10 @@ WARNING form/error-description [medium]
 The CLI runs axe accessibility checks and additional UX/layout checks. By default only errors fail the command. Use `--fail-on warning` for stricter CI, or `--fail-on none` for discovery. Exit codes: **0** passed, **1** findings at your threshold, **2** configuration/runtime failure.
 
 ```sh
-npx glocon ui init
-npx glocon doctor .
-npx glocon rules --json
-npx glocon audit http://localhost:3000 --config glocon.ui.json --json --output report.json
+npx --no-install glocon ui init
+npx --no-install glocon doctor .
+npx --no-install glocon rules --json
+npx --no-install glocon audit http://localhost:3000 --config glocon.ui.json --json --output report.json
 ```
 
 Use `--ready` for applications that hydrate or load asynchronously. A URL audit checks one page, viewport, and observed state; it does not crawl every route or exercise your flows.
@@ -194,10 +186,14 @@ ES modules, CommonJS, and TypeScript declarations are included. The glocon/ui, b
 ## For coding agents and CI
 
 ```sh
-npx glocon audit http://localhost:3000 --json --output report.json
+npx --no-install glocon audit http://localhost:3000 --json --output report.json
 ```
 
-Reports contain stable rule IDs, severity, confidence, target, observed evidence, suggested fixes, source links where available, suppressions, and coverage limitations. The [JSON schema](report.schema.json) and [llms.txt](llms.txt) describe the contract. Fingerprints identify rule/target pairs within a source; DOM restructuring can change selector-based identity.
+Reports contain stable rule IDs, severity, confidence, target, observed evidence, suggested fixes, source links where available, suppressions, and coverage limitations. The [JSON schema](report.schema.json) and [llms.txt](../../llms.txt) describe the contract. Fingerprints identify rule/target pairs within a source; DOM restructuring can change selector-based identity.
+
+Current reports use `schemaVersion: "1.0"` and UI `engineVersion: "0.2.0"`. `coverage.outcomes` records observed `passed`, `failed` and `manual-review` results, with a target where the adapter provides one. Outcomes retain the result before suppression. `coverage.targets` lists targets actually present in the collected snapshot once, without repeating them for every rule. `coverage.rules` lists executed or inapplicable rules; presence in that list alone does not prove a target passed. Manual-review outcomes remain visible and do not resolve an earlier baseline finding. Baseline resolution requires an exact passing rule/target outcome or an explicit clean applicable custom-rule pass with the old target present in `coverage.targets`. Removed cases and removed/unobserved targets without passing proof remain tracked with their prior review metadata.
+
+Fingerprints now hash every UTF-16 code unit. ASCII and BMP targets retain their previous fingerprints; supplementary-Unicode targets receive corrected identities. Review affected findings and recreate their baselines explicitly instead of automatically accepting the changed identities.
 
 No screenshots, raw HTML, entered form values, or page text are included by the built-in web reporter. URL query strings and fragments are omitted. URLs, selectors, custom-rule evidence, and native snapshots can still contain application-specific data; inspect reports before sharing them. There is no report upload service.
 
@@ -211,7 +207,7 @@ A clean report means **no findings from the checks and states executed**. It doe
 
 ```sh
 npm install
-npx playwright install chromium
+npx --no-install playwright install chromium
 npm run check
 npm pack
 ```

@@ -34,10 +34,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "finding",
-          "reason"
-        ],
+        "required": ["finding", "reason"],
         "properties": {
           "finding": {
             "$ref": "#/$defs/finding"
@@ -52,12 +49,7 @@
     "summary": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "error",
-        "warning",
-        "info",
-        "total"
-      ],
+      "required": ["error", "warning", "info", "total"],
       "properties": {
         "error": {
           "type": "integer",
@@ -80,17 +72,31 @@
     "coverage": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "rules",
-        "elements",
-        "limitations"
-      ],
+      "required": ["rules", "elements", "limitations"],
       "properties": {
         "rules": {
           "type": "array",
           "items": {
             "type": "string"
           }
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ruleId", "status"],
+            "properties": {
+              "ruleId": { "type": "string", "minLength": 1 },
+              "target": { "type": "string" },
+              "status": { "enum": ["passed", "failed", "manual-review"] }
+            }
+          }
+        },
+        "targets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
         },
         "elements": {
           "type": "integer",
@@ -111,11 +117,7 @@
         "collection": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "total",
-            "inspected",
-            "truncated"
-          ],
+          "required": ["total", "inspected", "truncated"],
           "properties": {
             "total": {
               "type": "integer",
@@ -157,25 +159,13 @@
           "type": "string"
         },
         "severity": {
-          "enum": [
-            "error",
-            "warning",
-            "info"
-          ]
+          "enum": ["error", "warning", "info"]
         },
         "confidence": {
-          "enum": [
-            "high",
-            "medium"
-          ]
+          "enum": ["high", "medium"]
         },
         "category": {
-          "enum": [
-            "accessibility",
-            "layout",
-            "consistency",
-            "ux"
-          ]
+          "enum": ["accessibility", "layout", "consistency", "ux"]
         },
         "message": {
           "type": "string"
@@ -194,11 +184,7 @@
           "additionalProperties": {
             "anyOf": [
               {
-                "type": [
-                  "string",
-                  "number",
-                  "boolean"
-                ]
+                "type": ["string", "number", "boolean"]
               },
               {
                 "type": "array",

@@ -49,7 +49,7 @@ assert.equal(convertLocalTime('2026-09-01T09:00', { from: 'America/New_York', to
 const sample = createMeteredComplianceExample('JP');
 const quote = calculateOrder(sample.config, sample.order);
 assert.equal(quote.status, 'ready');
-assert.equal(quote.value.engine, 'glocon-order-2');
+assert.equal(quote.value.engine, 'glocon-order-3');
 assert.equal(quote.value.gross, '17');
 assert.deepEqual(require('glocon/compliance').calculateOrder(sample.config, sample.order), quote);
 const invoice = createInvoiceDraft(sample.config, sample.order, sample.details);
