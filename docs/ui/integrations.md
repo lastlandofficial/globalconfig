@@ -71,6 +71,8 @@ Supply nodes from your test harness, native accessibility tree, or measured layo
 
 This is an adapter API, not an Appium/Detox integration. It does not validate hitSlop, keyboard behavior, screen-reader navigation, or font scaling. Browser web exports from Expo can use the normal browser auditor separately.
 
+The optional `npm run test:native:android` installs the packed library into a fresh Expo 57 fixture and runs it in Expo Go on a selected disposable Android emulator. Set `GLOCON_NATIVE_SERIAL` to the emulator serial and `GLOCON_EXPO_GO_APK` to the official Expo Go 57.0.9 APK. The tools require Node 22.13+, adb and a booted emulator; they are installed in a temporary directory. Android 15, React Native 0.86.2 and static Hermes were verified on 2026-10-08: real measured controls, invoice/credit button presses, remaining-quantity rejection, light/dark appearance and detection of a visible tiny unnamed control. The run also checks large exact currency display and DST behavior. It retains result/events JSON and screenshots; no iOS or standalone production APK coverage is implied.
+
 ## Extend the rule engine
 
 ```ts

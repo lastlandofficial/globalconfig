@@ -14,6 +14,8 @@ Keep release URLs versioned and immutable. Do not replace `v0.1.0` assets with d
 
 The project is named **globalconfig** and its npm package name is `glocon`. npm publication requires an account with permission to publish that name and two-factor authentication for interactive publishing. Bun, pnpm, and Yarn use the same published npm package. For subsequent releases, increase the package version before publishing.
 
+Before publishing, review the source commit and confirm its eight CI jobs pass, including packaged Electron and Android/Hermes. The release candidate manifest records the archive sha512 integrity, source-tree hash and completed validation. Rebuild and refresh that manifest whenever source or packaged documentation changes.
+
 From a clean checkout:
 
 ```sh

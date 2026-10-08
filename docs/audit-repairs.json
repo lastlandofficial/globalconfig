@@ -125,15 +125,15 @@
     {
       "id": "hermes-currency-precision",
       "priority": "P1",
-      "status": "runtime-validation-in-progress",
+      "status": "verified",
       "problem": "Actual Android Hermes coerces decimal strings to doubles while formatting money and displayed 9007199254740993.01 as 9007199254740994.00.",
       "repair": "Detect exact-string Intl support; preserve exact numeric digits through locale parts on legacy runtimes; reject unsafe currency-name grammar instead of rounding silently.",
       "evidence": [
         "test/currency.test.mjs: 567 legacy-Intl cases across nine locales, three currencies and display modes",
         "src/currency-format.ts",
-        "Android CI runtime evidence and regression in scripts/check-native.mjs"
-      ],
-      "remaining": "Complete the fixed formatter and native interaction run in hardware-accelerated CI."
+        "Android CI runtime evidence and regression in scripts/check-native.mjs",
+        "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427"
+      ]
     }
   ],
   "broaderReadiness": [
@@ -212,14 +212,15 @@
     },
     {
       "id": "native-and-electron",
-      "status": "android-ci-validation-pending",
-      "current": "Packaged Electron verified. Actual Android Expo/Hermes startup verified exact metered arithmetic, money round-trip, DST and measured native controls; it exposed a legacy Intl display bug. The formatting fix and full interaction run are pending CI.",
-      "remaining": "Complete actual Android Hermes fixture and retain its runtime evidence; iOS, other desktop operating systems and application-specific/native assistive-technology checks remain outside this representative matrix.",
+      "status": "verified-representative-matrix",
+      "current": "Packaged Linux Electron and Android 15 Expo Go/Hermes fixtures pass: exact currency/time/metered arithmetic, measured native controls, real invoice and fractional-credit button interactions, over-credit rejection, light/dark appearance, and deliberate defect detection. Actual Hermes execution exposed and now verifies the repaired legacy Intl exact-digit formatter.",
+      "remaining": "iOS, other desktop operating systems, standalone production APKs and application-specific/native assistive-technology checks require their own verification.",
       "evidence": [
         "scripts/check-electron.mjs",
         "fixtures/electron",
         "scripts/check-native.mjs",
-        "fixtures/native"
+        "fixtures/native",
+        "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427"
       ]
     },
     {
@@ -243,12 +244,12 @@
       "skipped": 0
     },
     "node20": {
-      "passed": 71,
+      "passed": 72,
       "skipped": 3,
       "skipReason": "No built-in node:sqlite"
     },
     "node24": {
-      "passed": 74,
+      "passed": 75,
       "skipped": 0
     },
     "independentArithmetic": {
@@ -267,17 +268,19 @@
       {
         "framework": "Vite",
         "checks": 18,
-        "firstReportMinutes": 1.17,
+        "firstReportMinutes": 0.51,
         "baselineAndNewRegression": true,
-        "financialLifecycle": true
+        "financialLifecycle": true,
+        "timingEnvironment": "Automated clean-install GitHub Actions fixture, not an independent-user trial"
       },
       {
         "framework": "Next.js",
         "checks": 20,
-        "firstReportMinutes": 0.7,
+        "firstReportMinutes": 0.65,
         "baselineAndNewRegression": true,
         "financialLifecycle": true,
-        "loginAndExpiredSession": true
+        "loginAndExpiredSession": true,
+        "timingEnvironment": "Automated clean-install GitHub Actions fixture, not an independent-user trial"
       }
     ],
     "dependencies": {
@@ -291,7 +294,7 @@
     "webkit": {
       "renderedPageTests": 10,
       "passed": 10,
-      "environment": "Ubuntu 24.04 temporary runtime"
+      "environment": "Ubuntu GitHub Actions; earlier local verification used temporary Ubuntu 24.04"
     },
     "packageManagers": [
       "npm",
@@ -305,9 +308,9 @@
     "bundleMeasurements": [
       {
         "name": "currency formatter",
-        "bytes": 34571,
-        "gzipBytes": 13994,
-        "maxBytes": 36000,
+        "bytes": 36156,
+        "gzipBytes": 14644,
+        "maxBytes": 37000,
         "maxGzip": 15000
       },
       {
@@ -319,8 +322,8 @@
       },
       {
         "name": "global client",
-        "bytes": 240937,
-        "gzipBytes": 76399,
+        "bytes": 242524,
+        "gzipBytes": 77020,
         "maxBytes": 250000,
         "maxGzip": 82000
       },
@@ -367,9 +370,57 @@
     },
     "meteredPackageManagerChecks": "all four fresh installations execute exact metered invoices and three fractional credits in ESM/CJS",
     "nativeAndroid": {
-      "status": "Exact currency display fix validation pending",
-      "localAttempt": "Software-emulated API 35 AOSP ATD connected but failed to complete boot; fixture did not execute.",
-      "evidence": "scripts/check-native.mjs and isolated Expo 57 fixture; hardware-accelerated CI job added"
+      "android": "15",
+      "expo": "57.0.27",
+      "expoGo": "57.0.9",
+      "reactNative": {
+        "minor": 86,
+        "prerelease": null,
+        "patch": 2,
+        "major": 0
+      },
+      "hermes": {
+        "Bytecode Version": 98,
+        "Static Hermes": true,
+        "Builtins Frozen": false,
+        "VM Experiments": 0,
+        "Build": "Release",
+        "GC": "hades (concurrent)",
+        "OSS Release Version": "for RN 0.86.2",
+        "Debugger Enabled": true,
+        "CommonJS Modules": "None"
+      },
+      "nativeMeasuredLayout": true,
+      "nativeInteractions": true,
+      "darkAppearance": true,
+      "financialGross": "17",
+      "fractionalCredits": [
+        "5",
+        "6",
+        "6"
+      ],
+      "overCreditRejected": true,
+      "deliberateDefectsDetected": true,
+      "scope": "One Android Expo Go emulator fixture; no iOS, standalone production APK, screen-reader, keyboard or font-scaling certification.",
+      "status": "passed",
+      "ciEvidence": "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427",
+      "exactCurrencyDisplay": "$9,007,199,254,740,993.01",
+      "minorUnitRoundtrip": "999999999999999999999999999999.99",
+      "dstInstant": "2026-11-01T06:30:00Z",
+      "screenshotsReviewed": [
+        "light",
+        "dark"
+      ],
+      "screenshots": [
+        {
+          "file": "glocon-native-light.png",
+          "sha256": "5d29f3c976d37ed675f03612fc1f7d931ce83733335ad6187e73c4ffc19cec68"
+        },
+        {
+          "file": "glocon-native-dark.png",
+          "sha256": "4f5ac2a6448755441ceb2b6360333343ce63f7c2a430b743c64a214b72ebb22b"
+        }
+      ]
     },
     "legacyIntlRegression": {
       "cases": 567,
@@ -377,6 +428,13 @@
       "currencies": 3,
       "displayModes": 3,
       "passed": true
+    },
+    "ci": {
+      "url": "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427",
+      "sourceCommit": "aae95b664cf86d4a153205a8c3dac3ad203d3e0a",
+      "jobs": 8,
+      "passed": 8,
+      "environment": "GitHub Actions Ubuntu"
     }
   }
 }
