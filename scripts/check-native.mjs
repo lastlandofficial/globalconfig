@@ -5,6 +5,7 @@ import { mkdtemp, cp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:http";
+import { pixelLauncherCloseControl } from "./native-shell-ui.mjs";
 
 const serial = process.env.GLOCON_NATIVE_SERIAL;
 if (!serial?.startsWith("emulator-"))
@@ -90,10 +91,26 @@ async function tap(label) {
 async function prepareInteractions() {
   let continues = 0;
   let closes = 0;
+  let launcherCloses = 0;
   let previousProceedBounds;
   try {
     await until(async () => {
       const xml = await hierarchy();
+      const launcherClose = pixelLauncherCloseControl(xml);
+      if (launcherClose) {
+        if (launcherCloses >= 2)
+          throw Error("Pixel Launcher dialog persisted after two recoveries.");
+        await tapNode(launcherClose);
+        launcherCloses++;
+        events.push({
+          kind: "shell-ui",
+          value: {
+            action: "Close unresponsive Pixel Launcher",
+            attempt: launcherCloses,
+          },
+        });
+        return false;
+      }
       if (control(xml, "Record invoice")) return true;
       // A fresh Expo Go install opens its own animated developer sheet.
       // Dismiss only this observed shell UI; never retry or bypass an application action.
@@ -127,7 +144,7 @@ async function prepareInteractions() {
     }, "Expo developer menu dismissed and application controls visible");
   } catch (error) {
     throw Error(
-      `${error.message}\nMenu actions: Continue=${continues}, Back=${closes}\n${lastHierarchy}`,
+      `${error.message}\nMenu actions: Continue=${continues}, Back=${closes}, Launcher=${launcherCloses}\n${lastHierarchy}`,
       { cause: error },
     );
   }

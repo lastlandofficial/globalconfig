@@ -444,7 +444,7 @@
     "validation": {
       "status": "passed-current-core-browser-packaging-and-docs",
       "finalCounts": {
-        "node": 101,
+        "node": 106,
         "unit": 109,
         "browser": 40
       },
@@ -472,7 +472,9 @@
       },
       "format": "npm run format:check passed",
       "releaseEvidence": "glocon-0.7.0.release.json",
-      "releaseEvidenceScope": "The generated release manifest records exact source/archive hashes and only the additional framework, minimum-runtime and extended checks actually executed by release:verify. Consult its task statuses; this record does not assert external publication or CI execution."
+      "releaseEvidenceScope": "The generated release manifest records exact source/archive hashes and only the additional framework, minimum-runtime and extended checks actually executed by release:verify. Consult its task statuses; this record does not assert external publication or CI execution.",
+      "additionalNodeVerification": "node --test test/*.test.mjs passed all 106 tests after adding five launcher-only recovery guards. Final release:verify repeats the full current suite against the source/archive hash.",
+      "platformRegressionFixtures": "Extreme-depth DOM visibility follows each browser rendered geometry, with a separate mandatory visible 30-level case. Android startup recovery handles only the observed Pixel Launcher system dialog, with bounded attempts and recorded events; application ANRs still fail."
     },
     "improvements": [
       {

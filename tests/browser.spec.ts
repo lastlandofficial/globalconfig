@@ -361,44 +361,53 @@ test("deep display contents trees are inspected without recursive call stack gro
   page,
 }) => {
   await page.goto("/fixtures/healthy.html");
-  await page.evaluate(() => {
-    document.body.innerHTML = "<main></main>";
-    let parent = document.querySelector("main")!;
-    for (let index = 0; index < 4500; index++) {
-      const child = document.createElement("div");
-      child.id = `deep-${index}`;
-      child.style.display = "contents";
-      parent.append(child);
-      parent = child;
-    }
-    const button = document.createElement("button");
-    button.id = "deep-button";
-    button.textContent = "Save";
-    button.style.cssText = "width:44px;height:44px";
-    parent.append(button);
-  });
-  const results = await page.evaluate(
-    ({ collector }) => {
-      const snapshot = (0, eval)(`(${collector})`)({});
-      return {
-        inspected: snapshot.collection.inspected,
-        truncated: snapshot.collection.truncated,
-        outerVisible: snapshot.elements.find(
-          (element: { target: string }) => element.target === "#deep-0",
-        ).visible,
-        buttonVisible: snapshot.elements.find(
-          (element: { target: string }) => element.target === "#deep-button",
-        ).visible,
-      };
-    },
-    { collector: collectSnapshot.toString() },
-  );
-  expect(results).toMatchObject({
-    truncated: false,
-    outerVisible: true,
-    buttonVisible: true,
-  });
-  expect(results.inspected).toBeGreaterThan(4500);
+  for (const depth of [30, 4500]) {
+    await page.evaluate((depth) => {
+      document.body.innerHTML = "<main></main>";
+      let parent = document.querySelector("main")!;
+      for (let index = 0; index < depth; index++) {
+        const child = document.createElement("div");
+        child.id = `deep-${index}`;
+        child.style.display = "contents";
+        parent.append(child);
+        parent = child;
+      }
+      const button = document.createElement("button");
+      button.id = "deep-button";
+      button.textContent = "Save";
+      button.style.cssText = "width:44px;height:44px";
+      parent.append(button);
+    }, depth);
+    const results = await page.evaluate(
+      ({ collector }) => {
+        const snapshot = (0, eval)(`(${collector})`)({});
+        const rect = document
+          .querySelector("#deep-button")!
+          .getBoundingClientRect();
+        return {
+          inspected: snapshot.collection.inspected,
+          truncated: snapshot.collection.truncated,
+          rendered: rect.width > 0 && rect.height > 0,
+          outerVisible: snapshot.elements.find(
+            (element: { target: string }) => element.target === "#deep-0",
+          ).visible,
+          buttonVisible: snapshot.elements.find(
+            (element: { target: string }) => element.target === "#deep-button",
+          ).visible,
+        };
+      },
+      { collector: collectSnapshot.toString() },
+    );
+    if (depth === 30) expect(results.rendered).toBe(true);
+    // Extreme DOM depth may exceed a browser's rendering limit. Collection still
+    // completes and its visibility must reflect the browser's measured geometry.
+    expect(results).toMatchObject({
+      truncated: false,
+      outerVisible: results.rendered,
+      buttonVisible: results.rendered,
+    });
+    expect(results.inspected).toBeGreaterThan(depth);
+  }
 });
 
 test("nested inline suppressions inherit every applicable ancestor declaration", async ({
