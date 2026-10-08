@@ -6,7 +6,8 @@ const entries = [
     name: "currency formatter",
     path: "currency",
     symbol: "formatCurrency",
-    maxBytes: 36000,
+    // The verified legacy-Intl exact-digit path adds ~1.6 KB; gzip retains its original 15 KB budget.
+    maxBytes: 37000,
     maxGzip: 15000,
   },
   {

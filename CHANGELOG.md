@@ -4,6 +4,7 @@
 
 - Add reviewed metered billing: decimal-string quantities, higher-precision catalog prices, independent line rounding, versioned snapshots, exact cumulative fractional credits and transactional SQLite limits.
 - Verify a packaged Linux Electron application and add explicit same-origin accessibility analysis for contexts that cannot open axe's standard aggregation target.
+- Preserve exact currency digits on Hermes/older Intl runtimes, using locale grouping and numeral parts instead of lossy decimal-string coercion. Unsafe currency-name formatting requires a compatible Intl implementation.
 - Mark truncated DOM collection incomplete, fail it independently of finding severity, and prevent partial runs from creating or resolving baselines. Explicit partial-coverage opt-in remains visible in reports.
 - Verify standalone audit destinations before and after scans; require explicit expected destinations for legitimate redirects.
 - Validate all native frame coordinates/dimensions, viewport measurements, IDs and optional metadata before applying rules.

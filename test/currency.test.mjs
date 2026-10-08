@@ -63,6 +63,79 @@ test("large amounts retain precision when formatted", () => {
   assert.equal(formatCurrency("1234567.89", "INR"), "₹12,34,567.89");
   assert.equal(formatCurrency("1500.5", "JPY"), "￥1,501");
 });
+
+test("legacy Intl preserves exact currency digits, grouping, signs and locale numerals", () => {
+  const Original = Intl.NumberFormat;
+  const cases = [];
+  for (const locale of [
+    "en-US",
+    "en-IN",
+    "ja-JP",
+    "fr-FR",
+    "ar-EG",
+    "hi-IN-u-nu-deva",
+    "zh-Hans-CN-u-nu-hanidec",
+    "es-ES",
+    "pl-PL",
+  ]) {
+    for (const currency of ["USD", "INR", "JPY"]) {
+      for (const amount of [
+        "9007199254740993.01",
+        "999999999999999999999999999999.99",
+        "-9007199254740993.12",
+        "-0.001",
+        "1234.56",
+        "12345.67",
+        "1.005",
+      ]) {
+        for (const currencyDisplay of ["symbol", "narrowSymbol", "code"]) {
+          const options = { locale, currencyDisplay };
+          cases.push({
+            amount,
+            currency,
+            options,
+            expected: formatCurrency(amount, currency, options),
+          });
+        }
+      }
+    }
+  }
+  class Legacy extends Original {
+    get format() {
+      const format = super.format;
+      return (value) => format(Number(value));
+    }
+    formatToParts(value) {
+      return super.formatToParts(Number(value));
+    }
+  }
+  Intl.NumberFormat = Legacy;
+  try {
+    for (const entry of cases)
+      assert.equal(
+        formatCurrency(entry.amount, entry.currency, entry.options),
+        entry.expected,
+        JSON.stringify(entry),
+      );
+    assert.equal(
+      formatCurrency("1.01", "USD", { currencyDisplay: "name" }),
+      "1.01 US dollars",
+    );
+    assert.throws(
+      () =>
+        formatCurrency("9007199254740993.01", "USD", {
+          currencyDisplay: "name",
+        }),
+      /decimal-string Intl support/,
+    );
+  } finally {
+    Intl.NumberFormat = Original;
+  }
+  assert.equal(
+    formatCurrency("9007199254740993.01", "USD"),
+    "$9,007,199,254,740,993.01",
+  );
+});
 test("host Decimal configuration cannot change calculations", () => {
   const precision = Decimal.precision;
   Decimal.set({ precision: 2 });

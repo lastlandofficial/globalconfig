@@ -25,6 +25,8 @@ All root exports are also available from the corresponding subpath. Invalid runt
 
 `ExchangeRates` is `{ base, rates, asOf, source }`. A base quote may be omitted; if supplied it must equal 1. All supplied quotes must be positive and supported. Cross rate = `targetQuote / sourceQuote`. Same-currency conversions use rate 1. Monetary input supports strings or numbers; use strings for exact values. Freshness boundaries are inclusive: an age equal to `maxAgeMs` passes.
 
+`formatCurrency` detects decimal-string support in `Intl`. Older implementations, including the tested Hermes runtime, retain exact string digits with locale grouping, decimal separators, signs and numeral systems from `formatToParts`. Numeric digits come from the rounded decimal string. `currencyDisplay: 'name'` on such a runtime is limited to safely representable amounts below 2^45, because name grammar may depend on the exact value. Larger names require compatible Intl or symbol/code display and throw instead of losing money precision. Modern Intl retains direct formatting. A 567-case regression matrix covers nine locales, three currencies, signs, bounds, grouping and numeral variants under simulated legacy coercion.
+
 ## Time API (`glocon/time`)
 
 | Export | Purpose |

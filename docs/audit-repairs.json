@@ -121,6 +121,19 @@
         "docs/compliance/README.md",
         "docs/publishing.md"
       ]
+    },
+    {
+      "id": "hermes-currency-precision",
+      "priority": "P1",
+      "status": "runtime-validation-in-progress",
+      "problem": "Actual Android Hermes coerces decimal strings to doubles while formatting money and displayed 9007199254740993.01 as 9007199254740994.00.",
+      "repair": "Detect exact-string Intl support; preserve exact numeric digits through locale parts on legacy runtimes; reject unsafe currency-name grammar instead of rounding silently.",
+      "evidence": [
+        "test/currency.test.mjs: 567 legacy-Intl cases across nine locales, three currencies and display modes",
+        "src/currency-format.ts",
+        "Android CI runtime evidence and regression in scripts/check-native.mjs"
+      ],
+      "remaining": "Complete the fixed formatter and native interaction run in hardware-accelerated CI."
     }
   ],
   "broaderReadiness": [
@@ -200,7 +213,7 @@
     {
       "id": "native-and-electron",
       "status": "android-ci-validation-pending",
-      "current": "Packaged Linux x64 Electron 44.7.0 verified. Android Expo/Hermes fixture prepared; local emulator boot timed out. Hardware-accelerated CI verification is pending.",
+      "current": "Packaged Electron verified. Actual Android Expo/Hermes startup verified exact metered arithmetic, money round-trip, DST and measured native controls; it exposed a legacy Intl display bug. The formatting fix and full interaction run are pending CI.",
       "remaining": "Complete actual Android Hermes fixture and retain its runtime evidence; iOS, other desktop operating systems and application-specific/native assistive-technology checks remain outside this representative matrix.",
       "evidence": [
         "scripts/check-electron.mjs",
@@ -225,7 +238,7 @@
   ],
   "validation": {
     "node22": {
-      "nodeTests": 74,
+      "nodeTests": 75,
       "unitTests": 60,
       "skipped": 0
     },
@@ -354,9 +367,16 @@
     },
     "meteredPackageManagerChecks": "all four fresh installations execute exact metered invoices and three fractional credits in ESM/CJS",
     "nativeAndroid": {
-      "status": "CI validation pending",
+      "status": "Exact currency display fix validation pending",
       "localAttempt": "Software-emulated API 35 AOSP ATD connected but failed to complete boot; fixture did not execute.",
       "evidence": "scripts/check-native.mjs and isolated Expo 57 fixture; hardware-accelerated CI job added"
+    },
+    "legacyIntlRegression": {
+      "cases": 567,
+      "locales": 9,
+      "currencies": 3,
+      "displayModes": 3,
+      "passed": true
     }
   }
 }

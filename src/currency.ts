@@ -2,6 +2,7 @@ import { currencyCode, currencyDigits } from "./countries";
 import type { CurrencyCode } from "./countries";
 import { D, decimal, isoInstant, rounding } from "./internal";
 import type { Amount, RoundingMode } from "./internal";
+import { formatExactCurrency } from "./currency-format";
 export type { Amount, RoundingMode } from "./internal";
 
 export interface ExchangeRates {
@@ -126,12 +127,12 @@ export function formatCurrency(
   const locale =
     options.locale ??
     ({ INR: "en-IN", USD: "en-US", JPY: "ja-JP" } as const)[currency];
-  // Modern Intl accepts decimal strings losslessly; the cast bridges older TS lib declarations.
-  return new Intl.NumberFormat(locale, {
+  const formatter = new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     currencyDisplay: options.currencyDisplay ?? "symbol",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
-  }).format(fixed as unknown as number);
+  });
+  return formatExactCurrency(fixed, formatter, locale, options.currencyDisplay);
 }
