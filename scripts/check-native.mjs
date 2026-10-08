@@ -355,7 +355,11 @@ try {
           (event) =>
             event.kind === "layout" &&
             event.value.nodes.some(
-              (node) => node.testID === "broken" && node.frame.width === 8,
+              (node) =>
+                node.testID === "broken" &&
+                node.visible &&
+                node.frame.width === 8 &&
+                node.frame.height === 8,
             ),
         ),
       "Measured native defect",
@@ -365,11 +369,13 @@ try {
     broken.report.findings.some(
       (finding) => finding.ruleId === "interaction/target-size",
     ),
+    JSON.stringify(broken),
   );
   assert.ok(
     broken.report.findings.some(
       (finding) => finding.ruleId === "native/control-name",
     ),
+    JSON.stringify(broken),
   );
   const result = {
     android: (

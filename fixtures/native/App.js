@@ -206,17 +206,6 @@ export default function App() {
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
-      {broken && (
-        <Pressable
-          ref={(ref) => {
-            controls.current.broken = ref;
-          }}
-          testID="broken"
-          accessibilityRole="button"
-          onLayout={audit}
-          style={{ width: 8, height: 8 }}
-        />
-      )}
       <Text
         accessibilityRole="header"
         style={[styles.title, { color: palette.text }]}
@@ -246,7 +235,27 @@ export default function App() {
       </View>
       {button("issue", () => action("issue"))}
       {button("credit", () => action("credit"))}
-      {button("defect", () => setBroken(true))}
+      <View>
+        {button("defect", () => setBroken(true))}
+        {broken && (
+          <Pressable
+            ref={(ref) => {
+              controls.current.broken = ref;
+            }}
+            testID="broken"
+            accessibilityRole="button"
+            onLayout={audit}
+            style={{
+              position: "absolute",
+              left: 12,
+              top: 12,
+              width: 8,
+              height: 8,
+              backgroundColor: palette.text,
+            }}
+          />
+        )}
+      </View>
       <Text
         accessibilityLiveRegion="polite"
         style={[styles.body, { color: palette.text }]}
