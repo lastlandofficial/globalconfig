@@ -83,7 +83,7 @@ export default function App() {
       fontScale: viewport.fontScale,
       nodes,
       viewport: { width: viewport.width, height: viewport.height },
-      report: auditNative(nodes, viewport),
+      report: auditNative(nodes, viewport, { targetSize: 48 }),
     });
   }, [dark, broken]);
   useEffect(() => {
@@ -127,7 +127,7 @@ export default function App() {
       if (type === "issue") {
         const result = createInvoiceDraft(
           example.config,
-          example.order,
+          { ...example.order, id: reference },
           example.details,
         );
         if (result.status !== "ready")
@@ -136,9 +136,9 @@ export default function App() {
         setTotal(result.value.calculation.gross);
         setStatus("Invoice draft ready");
         await emit("invoice", {
-          number: result.value.number,
+          number: result.value.details.number,
           gross: result.value.calculation.gross,
-          reference,
+          reference: result.value.calculation.snapshot.order.id,
         });
       } else {
         if (!invoice.current) throw Error("Record the invoice draft first.");
@@ -161,7 +161,7 @@ export default function App() {
         await emit("credit", {
           gross: result.value.gross,
           count: credits.current.length,
-          reference,
+          reference: invoice.current.calculation.snapshot.order.id,
         });
       }
     } catch (error) {

@@ -317,15 +317,17 @@ try {
     ).stdout,
   );
   await tap("Record invoice");
-  assert.equal(
-    (
-      await until(
-        () => events.find((event) => event.kind === "invoice"),
-        "Native invoice interaction",
-      )
-    ).value.gross,
-    "17",
-  );
+  const issued = (
+    await until(
+      () => events.find((event) => event.kind === "invoice"),
+      "Native invoice interaction",
+    )
+  ).value;
+  assert.deepEqual(issued, {
+    number: "INV/2026/1",
+    gross: "17",
+    reference: "metered-order",
+  });
   for (let count = 1; count <= 3; count++) {
     await tap("Credit portion");
     const credit = (
@@ -410,6 +412,7 @@ try {
     nativeInteractions: true,
     darkAppearance: true,
     financialGross: "17",
+    invoiceNumber: issued.number,
     fractionalCredits: ["5", "6", "6"],
     overCreditRejected: true,
     deliberateDefectsDetected: true,
