@@ -55,17 +55,20 @@ async function until(check, label, timeout = 60000) {
   }
   throw Error(`Timed out: ${label}\n${metroOutput.slice(-12000)}`);
 }
-async function tap(label) {
+async function hierarchy() {
   await adb("shell", "uiautomator", "dump", "/sdcard/glocon-ui.xml");
-  const xml = (await adb("shell", "cat", "/sdcard/glocon-ui.xml")).stdout;
-  const node = [...xml.matchAll(/<node\b[^>]*>/g)]
+  return (await adb("shell", "cat", "/sdcard/glocon-ui.xml")).stdout;
+}
+function control(xml, label) {
+  return [...xml.matchAll(/<node\b[^>]*>/g)]
     .map((match) => match[0])
     .find(
       (value) =>
         value.includes(`content-desc="${label}"`) ||
         value.includes(`text="${label}"`),
     );
-  assert.ok(node, `Native control not found: ${label}\n${xml}`);
+}
+async function tapNode(node) {
   const bounds = node.match(/bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
   assert.ok(bounds);
   await adb(
@@ -75,6 +78,38 @@ async function tap(label) {
     String(Math.floor((Number(bounds[1]) + Number(bounds[3])) / 2)),
     String(Math.floor((Number(bounds[2]) + Number(bounds[4])) / 2)),
   );
+}
+async function tap(label) {
+  const xml = await hierarchy();
+  const node = control(xml, label);
+  assert.ok(node, `Native control not found: ${label}\n${xml}`);
+  await tapNode(node);
+}
+async function prepareInteractions() {
+  let continued = false;
+  let closedMenu = false;
+  await until(async () => {
+    const xml = await hierarchy();
+    if (control(xml, "Record invoice")) return true;
+    // A fresh Expo Go install opens its own introductory developer sheet.
+    // Dismiss only this observed shell UI; never bypass an application action.
+    const proceed = control(xml, "Continue");
+    if (!continued && proceed && xml.includes("This is the developer menu.")) {
+      await tapNode(proceed);
+      continued = true;
+      return false;
+    }
+    if (
+      continued &&
+      !closedMenu &&
+      xml.includes("Glocon native verification") &&
+      control(xml, "Reload")
+    ) {
+      await adb("shell", "input", "keyevent", "KEYCODE_BACK");
+      closedMenu = true;
+    }
+    return false;
+  }, "Expo developer menu dismissed and application controls visible");
 }
 try {
   console.log("Preparing a fresh Expo 57 consumer of the packed library.");
@@ -250,6 +285,7 @@ try {
     )
   ).value;
   assert.deepEqual(healthy.report.findings, [], JSON.stringify(healthy));
+  await prepareInteractions();
   await writeFile(
     "/tmp/glocon-native-light.png",
     (
