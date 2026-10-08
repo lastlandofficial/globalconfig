@@ -3,8 +3,7 @@
   "additionalProperties": false,
   "properties": {
     "$schema": {
-      "type": "string",
-      "minLength": 1
+      "$ref": "#/$defs/text"
     },
     "version": {
       "const": 1
@@ -28,8 +27,7 @@
           "const": 1
         },
         "revision": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "requirements": {
           "type": "array",
@@ -119,20 +117,20 @@
       "additionalProperties": false,
       "properties": {
         "by": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "on": {
-          "type": "string",
-          "format": "date"
+          "$ref": "#/$defs/date"
         },
         "after": {
-          "type": "string",
-          "format": "date"
+          "$ref": "#/$defs/date"
         },
         "reference": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
+        },
+        "appliesFrom": {
+          "$ref": "#/$defs/date",
+          "description": "First covered transaction date. Defaults to on. Can precede the review date for explicitly reviewed historical transactions; must be earlier than after."
         }
       },
       "required": [
@@ -140,23 +138,21 @@
         "on",
         "after",
         "reference"
-      ]
+      ],
+      "description": "The review occurred on on. Covered transactions begin at appliesFrom (or on when omitted) and end before after. Date ordering is validated at runtime."
     },
     "business": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "id": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "name": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "address": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "country": {
           "enum": [
@@ -179,12 +175,10 @@
           ]
         },
         "registrationId": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "stateCode": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "review": {
           "$ref": "#/$defs/review"
@@ -212,8 +206,7 @@
               ]
             },
             "declaration": {
-              "type": "string",
-              "minLength": 1
+              "$ref": "#/$defs/text"
             }
           },
           "required": [
@@ -237,24 +230,19 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "description": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "unitPrice": {
-          "type": "string",
-          "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+          "$ref": "#/$defs/nonnegativeDecimal"
         },
         "classification": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "unit": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         }
       },
       "required": [
@@ -268,16 +256,13 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "productId": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "jurisdiction": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "treatment": {
           "enum": [
@@ -288,23 +273,19 @@
           ]
         },
         "rate": {
-          "type": "string",
-          "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+          "$ref": "#/$defs/rate"
         },
         "effectiveFrom": {
-          "type": "string",
-          "format": "date"
+          "$ref": "#/$defs/date"
         },
         "effectiveTo": {
-          "type": "string",
-          "format": "date"
+          "$ref": "#/$defs/date"
         },
         "review": {
           "$ref": "#/$defs/review"
         },
         "reason": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         }
       },
       "required": [
@@ -315,6 +296,39 @@
         "rate",
         "effectiveFrom",
         "review"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "treatment": {
+                "const": "taxable"
+              }
+            },
+            "required": [
+              "treatment"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rate": {
+                "not": {
+                  "$ref": "#/$defs/zeroDecimal"
+                }
+              }
+            }
+          },
+          "else": {
+            "required": [
+              "reason"
+            ],
+            "properties": {
+              "rate": {
+                "$ref": "#/$defs/zeroDecimal"
+              }
+            }
+          }
+        }
       ]
     },
     "requirement": {
@@ -322,12 +336,10 @@
       "additionalProperties": false,
       "properties": {
         "id": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "title": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "country": {
           "enum": [
@@ -337,25 +349,33 @@
           ]
         },
         "source": {
-          "type": "string",
-          "format": "uri",
-          "pattern": "^https://"
+          "allOf": [
+            {
+              "$ref": "#/$defs/text"
+            },
+            {
+              "format": "uri",
+              "pattern": "^[Hh][Tt][Tt][Pp][Ss]://"
+            }
+          ],
+          "description": "Absolute HTTPS source URL. Runtime also checks URL validity and source-monitor policy.",
+          "type": "string"
         },
         "provision": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "reviewedOn": {
-          "type": "string",
-          "format": "date"
+          "$ref": "#/$defs/date"
         },
         "reviewAfter": {
-          "type": "string",
-          "format": "date"
+          "$ref": "#/$defs/date"
         },
         "scope": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
+        },
+        "reviewAppliesFrom": {
+          "$ref": "#/$defs/date",
+          "description": "First covered transaction date. Defaults to reviewedOn. Must precede reviewAfter; runtime validates date ordering."
         }
       },
       "required": [
@@ -368,6 +388,85 @@
         "reviewAfter",
         "scope"
       ]
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "pattern": "\\S",
+      "description": "At most 10000 Unicode characters, including at least one non-whitespace character."
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "nonnegativeDecimal": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^0*[0-9]{1,30}(?:\\.[0-9]{1,18}0*)?$",
+      "description": "Unsigned plain decimal string, below 1e30, with at most 18 significant fractional places (trailing zeros do not add precision). Currency or reviewed unit-price precision is validated at runtime."
+    },
+    "rate": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^0*(?:[0-9]{1,2}(?:\\.[0-9]{1,18}0*)?|100(?:\\.0+)?)$",
+      "description": "Unsigned plain decimal percentage from 0 through 100, with at most 18 significant fractional places."
+    },
+    "zeroDecimal": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^0+(?:\\.0+)?$"
+    },
+    "positiveQuantity": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^0*(?:[0-9]{1,6}(?:\\.[0-9]{1,18}0*)?|1000000(?:\\.0+)?)$",
+      "not": {
+        "pattern": "^0+(?:\\.0+)?$",
+        "type": "string"
+      },
+      "description": "Positive unsigned plain decimal quantity no greater than 1000000. String quantities require a reviewed billing policy; its quantityPrecision is enforced at runtime."
     }
-  }
+  },
+  "description": "Structural and lexical validation for new financial configurations. Runtime additionally checks date ordering, unique IDs, product references, country-specific settings, and currency or billing-policy precision. Historical calculation engines retain their original replay validators.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "business": {
+            "properties": {
+              "country": {
+                "const": "IN"
+              }
+            },
+            "required": [
+              "country"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "business"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "indiaRounding"
+          ]
+        },
+        "properties": {
+          "business": {
+            "not": {
+              "required": [
+                "india"
+              ]
+            },
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
 }

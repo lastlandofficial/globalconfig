@@ -46,7 +46,7 @@ Each bundled control has an official source and suggested implementation/evidenc
 | California sales tax | Retain reviewed transaction location, combined rate, and effective dates | [CDTFA rate guidance](https://www.cdtfa.ca.gov/taxes-and-fees/know-your-rate.htm) |
 | Japan consumption tax | Test grouping and one rounding operation per invoice tax rate | [NTA rounding guidance](https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6371.htm) |
 
-The package performs tax arithmetic after the caller supplies classification and rate inputs. The invoice, consent, request-handling, and retention tasks describe work in the application; generating a plan does not implement these systems.
+The package performs tax arithmetic after the caller supplies classification and rate inputs. The invoice, consent, request-handling and retention tasks returned by `laws.plan()` describe work in the application; generating a plan does not implement those systems. Use the separate compliance APIs below for executable selected invoice checks.
 
 ## Record evidence and restore it later
 
@@ -72,7 +72,7 @@ console.log(restored.laws.plan().progress);
 
 ## Keep requirements current
 
-Source review dates describe this release's research. `sourcesToReview` lists relevant sources when the requested date differs from the recorded review date. This conservative flag does not detect whether a government page actually changed. CLI commands and library calls make no automatic legal-data fetches.
+Source review dates describe this release's research. For rules without `reviewAfter`, `sourcesToReview` conservatively lists relevant sources when the requested date differs from the recorded review date. Rules with an explicit `reviewAfter` become due at that exclusive deadline; queries before `reviewedOn` also require review. This conservative flag does not detect whether a government page actually changed. CLI commands and library calls make no automatic legal-data fetches.
 
 For a rule maintained by your team, use `createLawsManager({ rules })` or `register(rule)`. Controls may include `implementation`, `evidence`, and a more specific HTTPS `source`. Preserve stable IDs when the same control continues; add a new ID for materially new review work so an earlier `done` record does not complete it automatically. Keep the exact scope, source-review date, and established effective period with the rule.
 

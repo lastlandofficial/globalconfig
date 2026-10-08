@@ -139,7 +139,7 @@ test("metered demos declare reviewed precision and pass independent invoice expe
       const quote = JSON.parse(
         (await run(dir, "tax", "quote", "glocon.examples/order.json")).stdout,
       );
-      assert.equal(quote.value.engine, "glocon-order-2");
+      assert.equal(quote.value.engine, "glocon-order-3");
       assert.equal(quote.value.lines[0].quantity, "0.3");
     } finally {
       await rm(dir, { recursive: true, force: true });

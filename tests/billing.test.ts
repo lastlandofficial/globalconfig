@@ -34,7 +34,7 @@ describe("reviewed fractional billing", () => {
   it("extends exact catalog prices and decimal-string quantities before rounding the line charge", () => {
     const { config, order, details } = metered();
     const calculation = ready(calculateOrder(config, order));
-    expect(calculation.engine).toBe("glocon-order-2");
+    expect(calculation.engine).toBe("glocon-order-3");
     expect(calculation.lines[0]).toMatchObject({
       quantity: "1.5",
       unitPrice: "0.335",
@@ -42,7 +42,7 @@ describe("reviewed fractional billing", () => {
       tax: "0.04",
       gross: "0.54",
     });
-    expect(createComplianceLock(config).engine).toBe("glocon-order-2");
+    expect(createComplianceLock(config).engine).toBe("glocon-order-3");
     expect(verifyCalculation(calculation)).toBe(true);
     const invoice = ready(createInvoiceDraft(config, order, details));
     expect(validateInvoice(invoice).valid).toBe(true);

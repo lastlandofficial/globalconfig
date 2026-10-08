@@ -4,9 +4,7 @@ The project is **globalconfig**. Its npm package and terminal command are **gloc
 
 ## Install in an existing TypeScript or JavaScript app
 
-```sh
-npm install glocon
-```
+This guide describes the 0.7.0 release candidate. [Install the candidate archive](../README.md#install) and verify `npx --no-install glocon --version` before following it. The registry installation described in the README currently serves an older release. Country utilities do not require React, Playwright or axe.
 
 ```ts
 import { createGlobalConfig } from 'glocon';
@@ -36,10 +34,11 @@ Rates and jurisdictions above are example inputs. Confirm classifications and ap
 
 ## Optional project setup command
 
+Run these commands from the app where you [installed the 0.7.0 candidate archive](../README.md#install), after confirming `npx --no-install glocon --version` reports `0.7.0`. The commands below use that installed CLI.
+
 ```sh
-npm install -g glocon
-glocon init
-glocon plan
+npx --no-install glocon init
+npx --no-install glocon plan
 ```
 
 `init` asks for a country, detects npm/pnpm/Yarn/Bun, adds the local dependency, and runs the package manager's install command. It preserves existing scripts and refuses to overwrite any existing setup file.

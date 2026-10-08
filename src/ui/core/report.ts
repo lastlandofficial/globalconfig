@@ -1,10 +1,74 @@
 import type { AuditOptions, AuditReport, Finding, Severity } from "./types";
 
+const severities = ["error", "warning", "info"];
+function validateRuleSeverity(id: string, severity: unknown): void {
+  if (![...severities, "off"].includes(severity as string))
+    throw new Error(`Invalid severity for ${id}`);
+}
+
+/** @internal Shared runtime validation for JavaScript and untyped configuration callers. */
+export function validateAuditOptions(options: AuditOptions): void {
+  if (!options || typeof options !== "object" || Array.isArray(options))
+    throw new Error("Audit options must be an object.");
+  if (
+    options.coveragePolicy !== undefined &&
+    !["complete", "allow-truncated"].includes(options.coveragePolicy)
+  )
+    throw new Error("coveragePolicy must be complete or allow-truncated.");
+  if (
+    options.targetSize !== undefined &&
+    (!Number.isFinite(options.targetSize) || options.targetSize <= 0)
+  )
+    throw new Error("targetSize must be a positive finite number.");
+  if (
+    options.spacingTolerance !== undefined &&
+    (!Number.isFinite(options.spacingTolerance) || options.spacingTolerance < 0)
+  )
+    throw new Error("spacingTolerance must be a non-negative finite number.");
+  if (
+    options.spacingScale !== undefined &&
+    (!Array.isArray(options.spacingScale) ||
+      options.spacingScale.some((n) => !Number.isFinite(n) || n < 0))
+  )
+    throw new Error("spacingScale must contain non-negative finite numbers.");
+  if (
+    options.rules !== undefined &&
+    (!options.rules ||
+      typeof options.rules !== "object" ||
+      Array.isArray(options.rules))
+  )
+    throw new Error("rules must map rule IDs to severities.");
+  for (const [id, severity] of Object.entries(options.rules ?? {}))
+    validateRuleSeverity(id, severity);
+  if (
+    options.suppressions !== undefined &&
+    !Array.isArray(options.suppressions)
+  )
+    throw new Error("Suppressions must be an array.");
+  for (const suppression of options.suppressions ?? []) {
+    if (
+      !suppression ||
+      typeof suppression !== "object" ||
+      typeof suppression.ruleId !== "string" ||
+      !suppression.ruleId.trim()
+    )
+      throw new Error("Suppressions require a non-empty rule ID.");
+    if (
+      suppression.target !== undefined &&
+      typeof suppression.target !== "string"
+    )
+      throw new Error("Suppression targets must be strings.");
+    if (typeof suppression.reason !== "string" || !suppression.reason.trim())
+      throw new Error("Suppressions require a non-empty reason.");
+  }
+}
+
 /** Stable across runs; neither timestamp nor DOM content is part of identity. */
 export function fingerprint(ruleId: string, target: string): string {
   let hash = 2166136261;
-  for (const char of `${ruleId}\0${target}`) {
-    hash ^= char.charCodeAt(0);
+  const identity = `${ruleId}\0${target}`;
+  for (let index = 0; index < identity.length; index++) {
+    hash ^= identity.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
   return `glocon-${(hash >>> 0).toString(16).padStart(8, "0")}`;
@@ -15,11 +79,7 @@ export function createReport(
   coverage: AuditReport["coverage"],
   options: AuditOptions = {},
 ): AuditReport {
-  if (
-    options.coveragePolicy !== undefined &&
-    !["complete", "allow-truncated"].includes(options.coveragePolicy)
-  )
-    throw new Error("coveragePolicy must be complete or allow-truncated.");
+  validateAuditOptions(options);
   const collection = coverage.collection;
   if (
     collection &&
@@ -34,13 +94,14 @@ export function createReport(
     throw new Error(
       "Collection metadata must contain consistent total, inspected and truncated measurements.",
     );
-  for (const suppression of options.suppressions ?? [])
-    if (!suppression.reason?.trim())
-      throw new Error("Suppressions require a non-empty reason.");
   const suppressed: AuditReport["suppressed"] = [];
   const active: Finding[] = [];
   for (const finding of findings) {
-    if (options.rules?.[finding.ruleId] === "off") continue;
+    if (!severities.includes(finding.severity))
+      throw new Error(`Invalid finding severity for ${finding.ruleId}`);
+    const severity = options.rules?.[finding.ruleId];
+    if (severity !== undefined) validateRuleSeverity(finding.ruleId, severity);
+    if (severity === "off") continue;
     const suppression = options.suppressions?.find(
       (s) =>
         s.ruleId === finding.ruleId &&
@@ -51,10 +112,7 @@ export function createReport(
         throw new Error("Suppressions require a non-empty reason.");
       suppressed.push({ finding, reason: suppression.reason });
     } else {
-      const severity = options.rules?.[finding.ruleId];
-      active.push(
-        severity && severity !== "off" ? { ...finding, severity } : finding,
-      );
+      active.push(severity ? { ...finding, severity } : finding);
     }
   }
   const rank = { error: 0, warning: 1, info: 2 };
@@ -91,6 +149,11 @@ export function shouldFail(
   report: AuditReport,
   threshold: Severity | "none" = "error",
 ): boolean {
+  if (![...severities, "none"].includes(threshold))
+    throw new Error("threshold must be error, warning, info or none.");
+  for (const finding of report.findings)
+    if (!severities.includes(finding.severity))
+      throw new Error(`Invalid finding severity for ${finding.ruleId}`);
   const rank = { error: 0, warning: 1, info: 2 };
   return (
     (report.coverage.complete === false &&

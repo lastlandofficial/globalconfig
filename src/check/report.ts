@@ -49,6 +49,8 @@ export interface BaselineEntry {
   reason: string;
   reviewedOn: string;
   expires: string;
+  /** Exact audited target; older baselines use conservative rule-wide review checks. */
+  target?: string;
 }
 export interface Baseline {
   version: 1;
@@ -72,6 +74,7 @@ export const caseId = (
   viewport: CheckViewport,
   auth: boolean,
   scenario?: CheckScenario,
+  expectedURL?: string,
 ) =>
   hash([
     path,
@@ -81,6 +84,7 @@ export const caseId = (
     viewport.colorScheme ?? "light",
     auth,
     ...(scenario ? [canonical(scenario)] : []),
+    ...(expectedURL === undefined ? [] : [{ expectedURL }]),
   ]);
 export function validDate(date: string) {
   return (
@@ -127,7 +131,7 @@ export async function readBaseline(dir: string): Promise<Baseline> {
       );
     keys(
       entry,
-      ["key", "caseId", "ruleId", "reason", "reviewedOn", "expires"],
+      ["key", "caseId", "ruleId", "target", "reason", "reviewedOn", "expires"],
       "Baseline entry",
     );
     if (
@@ -135,6 +139,11 @@ export async function readBaseline(dir: string): Promise<Baseline> {
       (typeof entry.ruleId !== "string" || !entry.ruleId.trim())
     )
       throw new Error("Baseline ruleId must be a non-empty string.");
+    if (
+      entry.target !== undefined &&
+      (typeof entry.target !== "string" || !entry.target.trim())
+    )
+      throw new Error("Baseline target must be a non-empty string.");
     seen.add(entry.key);
   }
   return value as unknown as Baseline;
@@ -169,9 +178,7 @@ export function makeReport(
         existing: active.has(key),
       });
     }
-  const completedIds = new Set(
-    cases.filter((c) => c.status === "completed").map((c) => c.id),
-  );
+  const casesById = new Map(cases.map((result) => [result.id, result]));
   const observed = new Set(issues.map((i) => i.key));
   for (const result of cases)
     for (const { finding } of result.report?.suppressed ?? []) {
@@ -181,17 +188,8 @@ export function makeReport(
         );
     }
   const resolved = baseline.entries.filter((entry) => {
-    const result = cases.find((c) => c.id === entry.caseId);
-    return (
-      completedIds.has(entry.caseId) &&
-      entry.ruleId &&
-      result?.report?.coverage.rules.includes(entry.ruleId) &&
-      result.report.coverage.complete !== false &&
-      !result.report.coverage.limitations.some((limit) =>
-        /^(Inline suppression|DOM collection truncated)/.test(limit),
-      ) &&
-      !observed.has(entry.key)
-    );
+    const result = casesById.get(entry.caseId);
+    return canResolve(entry, result, observed.has(entry.key));
   }).length;
   const rank: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
   const threshold = config.failOn ?? "error";
@@ -226,6 +224,57 @@ export function makeReport(
     },
     exitCode: incomplete ? 2 : failing ? 1 : 0,
   };
+}
+function canResolve(
+  entry: BaselineEntry,
+  result: CheckCase | undefined,
+  observed: boolean,
+): boolean {
+  const report = result?.report;
+  if (
+    observed ||
+    result?.status !== "completed" ||
+    !entry.ruleId ||
+    !report ||
+    !report.coverage.rules.includes(entry.ruleId) ||
+    report.coverage.complete === false ||
+    requiresReview(entry, report) ||
+    report.coverage.limitations.some((limit) =>
+      /^(Inline suppression|DOM collection truncated)/.test(limit),
+    )
+  )
+    return false;
+  // A clean rule-wide pass proves a present target, as does its explicit pass.
+  // Empty outcomes or a removed/unobserved target are not resolution evidence.
+  return (
+    report.coverage.outcomes === undefined ||
+    report.coverage.outcomes.some(
+      (outcome) =>
+        outcome.ruleId === entry.ruleId &&
+        outcome.status === "passed" &&
+        (entry.target === undefined ||
+          outcome.target === entry.target ||
+          (outcome.target === undefined &&
+            report.coverage.targets?.includes(entry.target))),
+    )
+  );
+}
+function requiresReview(entry: BaselineEntry, report: AuditReport): boolean {
+  const outcomes = report.coverage.outcomes?.filter(
+    (outcome) => outcome.ruleId === entry.ruleId,
+  );
+  if (outcomes?.length)
+    return outcomes.some(
+      (outcome) =>
+        outcome.status === "manual-review" &&
+        outcome.ruleId === entry.ruleId &&
+        (entry.target === undefined ||
+          outcome.target === undefined ||
+          outcome.target === entry.target),
+    );
+  return report.coverage.limitations.some((limit) =>
+    limit.startsWith(`Manual review required: ${entry.ruleId} `),
+  );
 }
 export function groupIssues(issues: CheckIssue[]): Map<string, CheckIssue[]> {
   const groups = new Map<string, CheckIssue[]>();
@@ -284,6 +333,7 @@ const escape = (value: unknown) =>
       ]!,
   );
 export function renderCheckReport(report: CheckReport): string {
+  const casesById = new Map(report.cases.map((result) => [result.id, result]));
   const groups = [...groupIssues(report.issues).values()].sort(
     (a, b) => Number(a[0]!.existing) - Number(b[0]!.existing),
   );
@@ -292,7 +342,7 @@ export function renderCheckReport(report: CheckReport): string {
       const issue = group[0]!;
       return `<details ${issue.existing ? "" : "open"}><summary><span class="badge ${issue.existing ? "existing" : "new"}">${issue.existing ? "Existing" : "New"}</span> ${escape(issue.message)} <small>${group.length} occurrence(s)</small></summary><p><strong>${escape(issue.severity)} · ${escape(issue.ruleId)}</strong></p><pre>${escape(issue.target)}</pre><p>${escape(issue.suggestion)}</p>${issue.helpUrl && /^https?:\/\//.test(issue.helpUrl) ? `<p><a href="${escape(issue.helpUrl)}" rel="noreferrer">Supporting guidance</a></p>` : ""}<ul>${group
         .map((i) => {
-          const result = report.cases.find((c) => c.id === i.caseId);
+          const result = casesById.get(i.caseId);
           return `<li>${escape(i.page)} · ${escape(i.viewport)}${result?.screenshot && /^screenshots\/[a-f0-9]{64}\.png$/.test(result.screenshot) ? ` — <a href="${escape(result.screenshot)}">View highlighted page</a>` : ""}<details><summary>Measured evidence</summary><pre>${escape(JSON.stringify(i.evidence, null, 2))}</pre></details></li>`;
         })
         .join("")}</ul></details>`;
@@ -361,7 +411,7 @@ export async function saveBaseline(
     throw new Error(
       "Run glocon check again today before accepting a baseline.",
     );
-  const entries = [
+  const entries: BaselineEntry[] = [
     ...new Map(
       report.issues.map((i) => [
         i.key,
@@ -369,6 +419,7 @@ export async function saveBaseline(
           key: i.key,
           caseId: i.caseId,
           ruleId: i.ruleId,
+          target: i.target,
           reason,
           reviewedOn: today,
           expires: expiry,
@@ -376,6 +427,26 @@ export async function saveBaseline(
       ]),
     ).values(),
   ];
+  // Missing, indeterminate, disabled or unobserved targets are not repairs.
+  // Preserve their review/expiry rather than dropping or silently renewing them.
+  const current = await readBaseline(dir);
+  const accepted = new Set(entries.map((entry) => entry.key));
+  const observed = new Set(report.issues.map((issue) => issue.key));
+  const casesById = new Map(report.cases.map((result) => [result.id, result]));
+  for (const result of report.cases)
+    for (const { finding } of result.report?.suppressed ?? [])
+      for (const severity of ["error", "warning", "info"])
+        observed.add(
+          hash([result.id, finding.ruleId, finding.target, severity]),
+        );
+  for (const entry of current.entries) {
+    const result = casesById.get(entry.caseId);
+    if (
+      !accepted.has(entry.key) &&
+      !canResolve(entry, result, observed.has(entry.key))
+    )
+      entries.push(entry);
+  }
   await writeJSON(resolve(dir, "glocon.baseline.json"), {
     version: 1,
     entries,

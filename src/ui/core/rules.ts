@@ -237,7 +237,9 @@ export const rules: Rule[] = [
             e.attributes["aria-pressed"] ?? "false",
             e.attributes["aria-expanded"] ?? "false",
           ]);
-          groups.set(key, [...(groups.get(key) ?? []), e]);
+          const group = groups.get(key);
+          if (group) group.push(e);
+          else groups.set(key, [e]);
         }
       return [...groups.values()].flatMap((group) => {
         if (group.length < 3) return [];

@@ -1,0 +1,1439 @@
+{
+  "generatedWith": "glocon@0.7.0 (original glocon-order-2 before engine-3 repairs)",
+  "fictionalData": true,
+  "snapshots": [
+    {
+      "country": "IN",
+      "calculation": {
+        "engine": "glocon-order-2",
+        "currency": "INR",
+        "country": "IN",
+        "lines": [
+          {
+            "id": "item-1",
+            "productId": "example-item",
+            "description": "Example item — replace classification",
+            "classification": "0000",
+            "unit": "metered unit",
+            "quantity": "0.3",
+            "unitPrice": "50",
+            "discount": "0.00",
+            "treatment": "taxable",
+            "rate": "18",
+            "ruleId": "example-treatment",
+            "net": "15.00",
+            "tax": "2.70",
+            "gross": "17.70"
+          }
+        ],
+        "groups": [
+          {
+            "treatment": "taxable",
+            "rate": "18",
+            "net": "15.00",
+            "tax": "2.70",
+            "gross": "17.70",
+            "components": [
+              {
+                "name": "CGST",
+                "rate": "9",
+                "amount": "1.35"
+              },
+              {
+                "name": "SGST",
+                "rate": "9",
+                "amount": "1.35"
+              }
+            ]
+          }
+        ],
+        "net": "15.00",
+        "tax": "2.70",
+        "gross": "17.70",
+        "discount": "0.00",
+        "snapshot": {
+          "config": {
+            "billing": {
+              "lineRounding": "half-up",
+              "quantityPrecision": 6,
+              "review": {
+                "after": "2027-01-01",
+                "by": "Example reviewer (fictional)",
+                "on": "2026-09-09",
+                "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+              },
+              "unitPricePrecision": 6
+            },
+            "business": {
+              "address": "Example address — fictional",
+              "country": "IN",
+              "environment": "test",
+              "id": "example-business",
+              "india": {
+                "eInvoice": "not-required",
+                "signature": "electronic-exception"
+              },
+              "invoiceSeries": "INV",
+              "name": "Example business (test)",
+              "registration": "registered",
+              "registrationId": "27AAAAA0000A1Z5",
+              "review": {
+                "after": "2027-01-01",
+                "by": "Example reviewer (fictional)",
+                "on": "2026-09-09",
+                "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+              },
+              "stateCode": "27"
+            },
+            "products": [
+              {
+                "classification": "0000",
+                "description": "Example item — replace classification",
+                "id": "example-item",
+                "unit": "metered unit",
+                "unitPrice": "50"
+              }
+            ],
+            "rounding": "half-up",
+            "rules": {
+              "requirements": [
+                {
+                  "country": "IN",
+                  "id": "IN-GST-INVOICE-PARTIES",
+                  "provision": "Rule 46(a), (d), (e)",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                  "title": "Supplier and recipient particulars"
+                },
+                {
+                  "country": "IN",
+                  "id": "IN-GST-INVOICE-NUMBER",
+                  "provision": "Rule 46(b), (c)",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                  "title": "Invoice number and date"
+                },
+                {
+                  "country": "IN",
+                  "id": "IN-GST-INVOICE-ITEMS",
+                  "provision": "Rule 46(f)–(h)",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                  "title": "Classification, quantity, unit and description"
+                },
+                {
+                  "country": "IN",
+                  "id": "IN-GST-INVOICE-TOTALS",
+                  "provision": "Rule 46(i)–(m)",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                  "title": "Taxable value, rates and tax amounts"
+                },
+                {
+                  "country": "IN",
+                  "id": "IN-GST-INVOICE-PLACE-OF-SUPPLY",
+                  "provision": "Rule 46(n), (o)",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                  "title": "Place of supply and delivery address"
+                },
+                {
+                  "country": "IN",
+                  "id": "IN-GST-INVOICE-AUTHORIZATION",
+                  "provision": "Rule 46(p)–(s), Rule 48",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                  "title": "Signature, reverse charge and e-invoice review"
+                }
+              ],
+              "revision": "example-1",
+              "treatments": [
+                {
+                  "effectiveFrom": "2026-09-09",
+                  "id": "example-treatment",
+                  "jurisdiction": "IN",
+                  "productId": "example-item",
+                  "rate": "18",
+                  "review": {
+                    "after": "2027-01-01",
+                    "by": "Example reviewer (fictional)",
+                    "on": "2026-09-09",
+                    "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                  },
+                  "treatment": "taxable"
+                }
+              ],
+              "version": 1
+            },
+            "version": 1
+          },
+          "order": {
+            "buyer": {
+              "address": "Example buyer address",
+              "country": "IN",
+              "name": "Example buyer",
+              "stateCode": "27"
+            },
+            "date": "2026-09-09",
+            "id": "example-order",
+            "jurisdiction": "IN",
+            "lines": [
+              {
+                "id": "item-1",
+                "productId": "example-item",
+                "quantity": "0.3"
+              }
+            ],
+            "localTax": "SGST",
+            "placeOfSupply": "Maharashtra (27)",
+            "pricing": "exclusive",
+            "scenario": "ordinary-domestic",
+            "supply": "intra-state"
+          }
+        },
+        "limitations": [
+          "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
+          "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
+          "This result is a calculation, not government registration, a tax return or compliance certification."
+        ],
+        "digest": "5e3c76d4ebcb5d97a9e86fb57d876a86c6d9914483efff5ee4087ba0ec39e8a9"
+      },
+      "invoice": {
+        "kind": "invoice",
+        "version": 1,
+        "status": "draft",
+        "details": {
+          "issuedOn": "2026-09-09",
+          "number": "INV/2026/1"
+        },
+        "calculation": {
+          "engine": "glocon-order-2",
+          "currency": "INR",
+          "country": "IN",
+          "lines": [
+            {
+              "id": "item-1",
+              "productId": "example-item",
+              "description": "Example item — replace classification",
+              "classification": "0000",
+              "unit": "metered unit",
+              "quantity": "0.3",
+              "unitPrice": "50",
+              "discount": "0.00",
+              "treatment": "taxable",
+              "rate": "18",
+              "ruleId": "example-treatment",
+              "net": "15.00",
+              "tax": "2.70",
+              "gross": "17.70"
+            }
+          ],
+          "groups": [
+            {
+              "treatment": "taxable",
+              "rate": "18",
+              "net": "15.00",
+              "tax": "2.70",
+              "gross": "17.70",
+              "components": [
+                {
+                  "name": "CGST",
+                  "rate": "9",
+                  "amount": "1.35"
+                },
+                {
+                  "name": "SGST",
+                  "rate": "9",
+                  "amount": "1.35"
+                }
+              ]
+            }
+          ],
+          "net": "15.00",
+          "tax": "2.70",
+          "gross": "17.70",
+          "discount": "0.00",
+          "snapshot": {
+            "config": {
+              "billing": {
+                "lineRounding": "half-up",
+                "quantityPrecision": 6,
+                "review": {
+                  "after": "2027-01-01",
+                  "by": "Example reviewer (fictional)",
+                  "on": "2026-09-09",
+                  "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                },
+                "unitPricePrecision": 6
+              },
+              "business": {
+                "address": "Example address — fictional",
+                "country": "IN",
+                "environment": "test",
+                "id": "example-business",
+                "india": {
+                  "eInvoice": "not-required",
+                  "signature": "electronic-exception"
+                },
+                "invoiceSeries": "INV",
+                "name": "Example business (test)",
+                "registration": "registered",
+                "registrationId": "27AAAAA0000A1Z5",
+                "review": {
+                  "after": "2027-01-01",
+                  "by": "Example reviewer (fictional)",
+                  "on": "2026-09-09",
+                  "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                },
+                "stateCode": "27"
+              },
+              "products": [
+                {
+                  "classification": "0000",
+                  "description": "Example item — replace classification",
+                  "id": "example-item",
+                  "unit": "metered unit",
+                  "unitPrice": "50"
+                }
+              ],
+              "rounding": "half-up",
+              "rules": {
+                "requirements": [
+                  {
+                    "country": "IN",
+                    "id": "IN-GST-INVOICE-PARTIES",
+                    "provision": "Rule 46(a), (d), (e)",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                    "title": "Supplier and recipient particulars"
+                  },
+                  {
+                    "country": "IN",
+                    "id": "IN-GST-INVOICE-NUMBER",
+                    "provision": "Rule 46(b), (c)",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                    "title": "Invoice number and date"
+                  },
+                  {
+                    "country": "IN",
+                    "id": "IN-GST-INVOICE-ITEMS",
+                    "provision": "Rule 46(f)–(h)",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                    "title": "Classification, quantity, unit and description"
+                  },
+                  {
+                    "country": "IN",
+                    "id": "IN-GST-INVOICE-TOTALS",
+                    "provision": "Rule 46(i)–(m)",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                    "title": "Taxable value, rates and tax amounts"
+                  },
+                  {
+                    "country": "IN",
+                    "id": "IN-GST-INVOICE-PLACE-OF-SUPPLY",
+                    "provision": "Rule 46(n), (o)",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                    "title": "Place of supply and delivery address"
+                  },
+                  {
+                    "country": "IN",
+                    "id": "IN-GST-INVOICE-AUTHORIZATION",
+                    "provision": "Rule 46(p)–(s), Rule 48",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001",
+                    "title": "Signature, reverse charge and e-invoice review"
+                  }
+                ],
+                "revision": "example-1",
+                "treatments": [
+                  {
+                    "effectiveFrom": "2026-09-09",
+                    "id": "example-treatment",
+                    "jurisdiction": "IN",
+                    "productId": "example-item",
+                    "rate": "18",
+                    "review": {
+                      "after": "2027-01-01",
+                      "by": "Example reviewer (fictional)",
+                      "on": "2026-09-09",
+                      "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                    },
+                    "treatment": "taxable"
+                  }
+                ],
+                "version": 1
+              },
+              "version": 1
+            },
+            "order": {
+              "buyer": {
+                "address": "Example buyer address",
+                "country": "IN",
+                "name": "Example buyer",
+                "stateCode": "27"
+              },
+              "date": "2026-09-09",
+              "id": "example-order",
+              "jurisdiction": "IN",
+              "lines": [
+                {
+                  "id": "item-1",
+                  "productId": "example-item",
+                  "quantity": "0.3"
+                }
+              ],
+              "localTax": "SGST",
+              "placeOfSupply": "Maharashtra (27)",
+              "pricing": "exclusive",
+              "scenario": "ordinary-domestic",
+              "supply": "intra-state"
+            }
+          },
+          "limitations": [
+            "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
+            "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
+            "This result is a calculation, not government registration, a tax return or compliance certification."
+          ],
+          "digest": "5e3c76d4ebcb5d97a9e86fb57d876a86c6d9914483efff5ee4087ba0ec39e8a9"
+        },
+        "digest": "6e298211ac2c75e1535da0d3c79db5bc67aeef7bcb0c98b2c669e98babcbc07e"
+      },
+      "credits": [
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "6e298211ac2c75e1535da0d3c79db5bc67aeef7bcb0c98b2c669e98babcbc07e",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C1",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5.00",
+              "tax": "0.90",
+              "gross": "5.90",
+              "rate": "18"
+            }
+          ],
+          "net": "5.00",
+          "tax": "0.90",
+          "gross": "5.90",
+          "legalStatus": "review-required",
+          "digest": "f2c11236345b5bb8ace4a1c4d54d539499fc375b2cd29503883c904094148a4e"
+        },
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "6e298211ac2c75e1535da0d3c79db5bc67aeef7bcb0c98b2c669e98babcbc07e",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C2",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [
+            "f2c11236345b5bb8ace4a1c4d54d539499fc375b2cd29503883c904094148a4e"
+          ],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5.00",
+              "tax": "0.90",
+              "gross": "5.90",
+              "rate": "18"
+            }
+          ],
+          "net": "5.00",
+          "tax": "0.90",
+          "gross": "5.90",
+          "legalStatus": "review-required",
+          "digest": "763e685e7f317f3e5b2ce8f2b71885cfea14eb2f6e01a9329e0a016f0e15a98e"
+        },
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "6e298211ac2c75e1535da0d3c79db5bc67aeef7bcb0c98b2c669e98babcbc07e",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C3",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [
+            "f2c11236345b5bb8ace4a1c4d54d539499fc375b2cd29503883c904094148a4e",
+            "763e685e7f317f3e5b2ce8f2b71885cfea14eb2f6e01a9329e0a016f0e15a98e"
+          ],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5.00",
+              "tax": "0.90",
+              "gross": "5.90",
+              "rate": "18"
+            }
+          ],
+          "net": "5.00",
+          "tax": "0.90",
+          "gross": "5.90",
+          "legalStatus": "review-required",
+          "digest": "feb0b36d6450d9c8df1adb3420ad9e8ece11e96630ad02ee56a7fd0a4fb711ad"
+        }
+      ]
+    },
+    {
+      "country": "JP",
+      "calculation": {
+        "engine": "glocon-order-2",
+        "currency": "JPY",
+        "country": "JP",
+        "lines": [
+          {
+            "id": "item-1",
+            "productId": "example-item",
+            "description": "Example item — replace classification",
+            "classification": "TEST",
+            "unit": "metered unit",
+            "quantity": "0.3",
+            "unitPrice": "50",
+            "discount": "0",
+            "treatment": "taxable",
+            "rate": "10",
+            "ruleId": "example-treatment",
+            "net": "15",
+            "tax": "2",
+            "gross": "17"
+          }
+        ],
+        "groups": [
+          {
+            "treatment": "taxable",
+            "rate": "10",
+            "net": "15",
+            "tax": "2",
+            "gross": "17",
+            "components": [
+              {
+                "name": "Consumption tax",
+                "rate": "10",
+                "amount": "2"
+              }
+            ]
+          }
+        ],
+        "net": "15",
+        "tax": "2",
+        "gross": "17",
+        "discount": "0",
+        "snapshot": {
+          "config": {
+            "billing": {
+              "lineRounding": "half-up",
+              "quantityPrecision": 6,
+              "review": {
+                "after": "2027-01-01",
+                "by": "Example reviewer (fictional)",
+                "on": "2026-09-09",
+                "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+              },
+              "unitPricePrecision": 6
+            },
+            "business": {
+              "address": "Example address — fictional",
+              "country": "JP",
+              "environment": "test",
+              "id": "example-business",
+              "invoiceSeries": "INV",
+              "name": "Example business (test)",
+              "registration": "registered",
+              "registrationId": "T1234567890123",
+              "review": {
+                "after": "2027-01-01",
+                "by": "Example reviewer (fictional)",
+                "on": "2026-09-09",
+                "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+              }
+            },
+            "products": [
+              {
+                "classification": "TEST",
+                "description": "Example item — replace classification",
+                "id": "example-item",
+                "unit": "metered unit",
+                "unitPrice": "50"
+              }
+            ],
+            "rounding": "half-up",
+            "rules": {
+              "requirements": [
+                {
+                  "country": "JP",
+                  "id": "JP-INVOICE-PARTICULARS",
+                  "provision": "Consumption Tax Act 57-4; NTA No. 6625",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6625.htm",
+                  "title": "Qualified invoice particulars"
+                },
+                {
+                  "country": "JP",
+                  "id": "JP-INVOICE-ROUNDING",
+                  "provision": "NTA No. 6371",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                  "source": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6371.htm",
+                  "title": "Round once per invoice tax rate"
+                }
+              ],
+              "revision": "example-1",
+              "treatments": [
+                {
+                  "effectiveFrom": "2026-09-09",
+                  "id": "example-treatment",
+                  "jurisdiction": "JP",
+                  "productId": "example-item",
+                  "rate": "10",
+                  "review": {
+                    "after": "2027-01-01",
+                    "by": "Example reviewer (fictional)",
+                    "on": "2026-09-09",
+                    "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                  },
+                  "treatment": "taxable"
+                }
+              ],
+              "version": 1
+            },
+            "version": 1
+          },
+          "order": {
+            "buyer": {
+              "address": "Example buyer address",
+              "country": "JP",
+              "name": "Example buyer",
+              "stateCode": "EXAMPLE"
+            },
+            "date": "2026-09-09",
+            "id": "example-order",
+            "jurisdiction": "JP",
+            "lines": [
+              {
+                "id": "item-1",
+                "productId": "example-item",
+                "quantity": "0.3"
+              }
+            ],
+            "pricing": "exclusive",
+            "scenario": "ordinary-domestic"
+          }
+        },
+        "limitations": [
+          "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
+          "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
+          "This result is a calculation, not government registration, a tax return or compliance certification."
+        ],
+        "digest": "4cc5a016885ea7e81a58c408887008e721571242da8bdd62c6eb55bd3838e112"
+      },
+      "invoice": {
+        "kind": "invoice",
+        "version": 1,
+        "status": "draft",
+        "details": {
+          "issuedOn": "2026-09-09",
+          "number": "INV/2026/1"
+        },
+        "calculation": {
+          "engine": "glocon-order-2",
+          "currency": "JPY",
+          "country": "JP",
+          "lines": [
+            {
+              "id": "item-1",
+              "productId": "example-item",
+              "description": "Example item — replace classification",
+              "classification": "TEST",
+              "unit": "metered unit",
+              "quantity": "0.3",
+              "unitPrice": "50",
+              "discount": "0",
+              "treatment": "taxable",
+              "rate": "10",
+              "ruleId": "example-treatment",
+              "net": "15",
+              "tax": "2",
+              "gross": "17"
+            }
+          ],
+          "groups": [
+            {
+              "treatment": "taxable",
+              "rate": "10",
+              "net": "15",
+              "tax": "2",
+              "gross": "17",
+              "components": [
+                {
+                  "name": "Consumption tax",
+                  "rate": "10",
+                  "amount": "2"
+                }
+              ]
+            }
+          ],
+          "net": "15",
+          "tax": "2",
+          "gross": "17",
+          "discount": "0",
+          "snapshot": {
+            "config": {
+              "billing": {
+                "lineRounding": "half-up",
+                "quantityPrecision": 6,
+                "review": {
+                  "after": "2027-01-01",
+                  "by": "Example reviewer (fictional)",
+                  "on": "2026-09-09",
+                  "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                },
+                "unitPricePrecision": 6
+              },
+              "business": {
+                "address": "Example address — fictional",
+                "country": "JP",
+                "environment": "test",
+                "id": "example-business",
+                "invoiceSeries": "INV",
+                "name": "Example business (test)",
+                "registration": "registered",
+                "registrationId": "T1234567890123",
+                "review": {
+                  "after": "2027-01-01",
+                  "by": "Example reviewer (fictional)",
+                  "on": "2026-09-09",
+                  "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                }
+              },
+              "products": [
+                {
+                  "classification": "TEST",
+                  "description": "Example item — replace classification",
+                  "id": "example-item",
+                  "unit": "metered unit",
+                  "unitPrice": "50"
+                }
+              ],
+              "rounding": "half-up",
+              "rules": {
+                "requirements": [
+                  {
+                    "country": "JP",
+                    "id": "JP-INVOICE-PARTICULARS",
+                    "provision": "Consumption Tax Act 57-4; NTA No. 6625",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6625.htm",
+                    "title": "Qualified invoice particulars"
+                  },
+                  {
+                    "country": "JP",
+                    "id": "JP-INVOICE-ROUNDING",
+                    "provision": "NTA No. 6371",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
+                    "source": "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6371.htm",
+                    "title": "Round once per invoice tax rate"
+                  }
+                ],
+                "revision": "example-1",
+                "treatments": [
+                  {
+                    "effectiveFrom": "2026-09-09",
+                    "id": "example-treatment",
+                    "jurisdiction": "JP",
+                    "productId": "example-item",
+                    "rate": "10",
+                    "review": {
+                      "after": "2027-01-01",
+                      "by": "Example reviewer (fictional)",
+                      "on": "2026-09-09",
+                      "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                    },
+                    "treatment": "taxable"
+                  }
+                ],
+                "version": 1
+              },
+              "version": 1
+            },
+            "order": {
+              "buyer": {
+                "address": "Example buyer address",
+                "country": "JP",
+                "name": "Example buyer",
+                "stateCode": "EXAMPLE"
+              },
+              "date": "2026-09-09",
+              "id": "example-order",
+              "jurisdiction": "JP",
+              "lines": [
+                {
+                  "id": "item-1",
+                  "productId": "example-item",
+                  "quantity": "0.3"
+                }
+              ],
+              "pricing": "exclusive",
+              "scenario": "ordinary-domestic"
+            }
+          },
+          "limitations": [
+            "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
+            "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
+            "This result is a calculation, not government registration, a tax return or compliance certification."
+          ],
+          "digest": "4cc5a016885ea7e81a58c408887008e721571242da8bdd62c6eb55bd3838e112"
+        },
+        "digest": "5928d834c1c676269b857519824168a6a1e55e583012ad3e4b6897b6fffc4641"
+      },
+      "credits": [
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "5928d834c1c676269b857519824168a6a1e55e583012ad3e4b6897b6fffc4641",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C1",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5",
+              "tax": "0",
+              "gross": "5",
+              "rate": "10"
+            }
+          ],
+          "net": "5",
+          "tax": "0",
+          "gross": "5",
+          "legalStatus": "review-required",
+          "digest": "4be57a01e2961486608d4aeff2d2723ddbf34653308bc1f597dbc9682e012a81"
+        },
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "5928d834c1c676269b857519824168a6a1e55e583012ad3e4b6897b6fffc4641",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C2",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [
+            "4be57a01e2961486608d4aeff2d2723ddbf34653308bc1f597dbc9682e012a81"
+          ],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5",
+              "tax": "1",
+              "gross": "6",
+              "rate": "10"
+            }
+          ],
+          "net": "5",
+          "tax": "1",
+          "gross": "6",
+          "legalStatus": "review-required",
+          "digest": "2de8a53014c0864db51648cc2ed60af8281dfb15f5b88bd57750a385df090f1c"
+        },
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "5928d834c1c676269b857519824168a6a1e55e583012ad3e4b6897b6fffc4641",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C3",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [
+            "4be57a01e2961486608d4aeff2d2723ddbf34653308bc1f597dbc9682e012a81",
+            "2de8a53014c0864db51648cc2ed60af8281dfb15f5b88bd57750a385df090f1c"
+          ],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5",
+              "tax": "1",
+              "gross": "6",
+              "rate": "10"
+            }
+          ],
+          "net": "5",
+          "tax": "1",
+          "gross": "6",
+          "legalStatus": "review-required",
+          "digest": "acaccb6722938d7444d5349217e28737f3dded5666ea14b2337061b930eef101"
+        }
+      ]
+    },
+    {
+      "country": "US",
+      "calculation": {
+        "engine": "glocon-order-2",
+        "currency": "USD",
+        "country": "US",
+        "lines": [
+          {
+            "id": "item-1",
+            "productId": "example-item",
+            "description": "Example item — replace classification",
+            "classification": "TEST",
+            "unit": "metered unit",
+            "quantity": "0.3",
+            "unitPrice": "50",
+            "discount": "0.00",
+            "treatment": "taxable",
+            "rate": "7.25",
+            "ruleId": "example-treatment",
+            "net": "15.00",
+            "tax": "1.09",
+            "gross": "16.09"
+          }
+        ],
+        "groups": [
+          {
+            "treatment": "taxable",
+            "rate": "7.25",
+            "net": "15.00",
+            "tax": "1.09",
+            "gross": "16.09",
+            "components": [
+              {
+                "name": "US-CA/EXAMPLE",
+                "rate": "7.25",
+                "amount": "1.09"
+              }
+            ]
+          }
+        ],
+        "net": "15.00",
+        "tax": "1.09",
+        "gross": "16.09",
+        "discount": "0.00",
+        "snapshot": {
+          "config": {
+            "billing": {
+              "lineRounding": "half-up",
+              "quantityPrecision": 6,
+              "review": {
+                "after": "2027-01-01",
+                "by": "Example reviewer (fictional)",
+                "on": "2026-09-09",
+                "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+              },
+              "unitPricePrecision": 6
+            },
+            "business": {
+              "address": "Example address — fictional",
+              "country": "US",
+              "environment": "test",
+              "id": "example-business",
+              "invoiceSeries": "INV",
+              "name": "Example business (test)",
+              "registration": "registered",
+              "registrationId": "TEST-PERMIT",
+              "review": {
+                "after": "2027-01-01",
+                "by": "Example reviewer (fictional)",
+                "on": "2026-09-09",
+                "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+              }
+            },
+            "products": [
+              {
+                "classification": "TEST",
+                "description": "Example item — replace classification",
+                "id": "example-item",
+                "unit": "metered unit",
+                "unitPrice": "50"
+              }
+            ],
+            "rounding": "half-up",
+            "rules": {
+              "requirements": [
+                {
+                  "country": "US",
+                  "id": "US-CA-RATE-DECISION",
+                  "provision": "CDTFA Know Your Rate",
+                  "reviewAfter": "2026-12-09",
+                  "reviewedOn": "2026-09-09",
+                  "scope": "California reference only. No ZIP-only rate lookup, nexus decision, or other-state legal profile.",
+                  "source": "https://cdtfa.ca.gov/taxes-and-fees/know-your-rate.htm",
+                  "title": "Reviewed combined jurisdiction rate"
+                }
+              ],
+              "revision": "example-1",
+              "treatments": [
+                {
+                  "effectiveFrom": "2026-09-09",
+                  "id": "example-treatment",
+                  "jurisdiction": "US-CA/EXAMPLE",
+                  "productId": "example-item",
+                  "rate": "7.25",
+                  "review": {
+                    "after": "2027-01-01",
+                    "by": "Example reviewer (fictional)",
+                    "on": "2026-09-09",
+                    "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                  },
+                  "treatment": "taxable"
+                }
+              ],
+              "version": 1
+            },
+            "version": 1
+          },
+          "order": {
+            "buyer": {
+              "address": "Example buyer address",
+              "country": "US",
+              "name": "Example buyer",
+              "stateCode": "EXAMPLE"
+            },
+            "date": "2026-09-09",
+            "id": "example-order",
+            "jurisdiction": "US-CA/EXAMPLE",
+            "lines": [
+              {
+                "id": "item-1",
+                "productId": "example-item",
+                "quantity": "0.3"
+              }
+            ],
+            "pricing": "exclusive",
+            "scenario": "ordinary-domestic"
+          }
+        },
+        "limitations": [
+          "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
+          "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
+          "This result is a calculation, not government registration, a tax return or compliance certification."
+        ],
+        "digest": "80f9c3ba2da7a7c38ee97bfcd9f315900ba31f785c65255f14d76f21419322ad"
+      },
+      "invoice": {
+        "kind": "invoice",
+        "version": 1,
+        "status": "draft",
+        "details": {
+          "issuedOn": "2026-09-09",
+          "number": "INV/2026/1"
+        },
+        "calculation": {
+          "engine": "glocon-order-2",
+          "currency": "USD",
+          "country": "US",
+          "lines": [
+            {
+              "id": "item-1",
+              "productId": "example-item",
+              "description": "Example item — replace classification",
+              "classification": "TEST",
+              "unit": "metered unit",
+              "quantity": "0.3",
+              "unitPrice": "50",
+              "discount": "0.00",
+              "treatment": "taxable",
+              "rate": "7.25",
+              "ruleId": "example-treatment",
+              "net": "15.00",
+              "tax": "1.09",
+              "gross": "16.09"
+            }
+          ],
+          "groups": [
+            {
+              "treatment": "taxable",
+              "rate": "7.25",
+              "net": "15.00",
+              "tax": "1.09",
+              "gross": "16.09",
+              "components": [
+                {
+                  "name": "US-CA/EXAMPLE",
+                  "rate": "7.25",
+                  "amount": "1.09"
+                }
+              ]
+            }
+          ],
+          "net": "15.00",
+          "tax": "1.09",
+          "gross": "16.09",
+          "discount": "0.00",
+          "snapshot": {
+            "config": {
+              "billing": {
+                "lineRounding": "half-up",
+                "quantityPrecision": 6,
+                "review": {
+                  "after": "2027-01-01",
+                  "by": "Example reviewer (fictional)",
+                  "on": "2026-09-09",
+                  "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                },
+                "unitPricePrecision": 6
+              },
+              "business": {
+                "address": "Example address — fictional",
+                "country": "US",
+                "environment": "test",
+                "id": "example-business",
+                "invoiceSeries": "INV",
+                "name": "Example business (test)",
+                "registration": "registered",
+                "registrationId": "TEST-PERMIT",
+                "review": {
+                  "after": "2027-01-01",
+                  "by": "Example reviewer (fictional)",
+                  "on": "2026-09-09",
+                  "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                }
+              },
+              "products": [
+                {
+                  "classification": "TEST",
+                  "description": "Example item — replace classification",
+                  "id": "example-item",
+                  "unit": "metered unit",
+                  "unitPrice": "50"
+                }
+              ],
+              "rounding": "half-up",
+              "rules": {
+                "requirements": [
+                  {
+                    "country": "US",
+                    "id": "US-CA-RATE-DECISION",
+                    "provision": "CDTFA Know Your Rate",
+                    "reviewAfter": "2026-12-09",
+                    "reviewedOn": "2026-09-09",
+                    "scope": "California reference only. No ZIP-only rate lookup, nexus decision, or other-state legal profile.",
+                    "source": "https://cdtfa.ca.gov/taxes-and-fees/know-your-rate.htm",
+                    "title": "Reviewed combined jurisdiction rate"
+                  }
+                ],
+                "revision": "example-1",
+                "treatments": [
+                  {
+                    "effectiveFrom": "2026-09-09",
+                    "id": "example-treatment",
+                    "jurisdiction": "US-CA/EXAMPLE",
+                    "productId": "example-item",
+                    "rate": "7.25",
+                    "review": {
+                      "after": "2027-01-01",
+                      "by": "Example reviewer (fictional)",
+                      "on": "2026-09-09",
+                      "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+                    },
+                    "treatment": "taxable"
+                  }
+                ],
+                "version": 1
+              },
+              "version": 1
+            },
+            "order": {
+              "buyer": {
+                "address": "Example buyer address",
+                "country": "US",
+                "name": "Example buyer",
+                "stateCode": "EXAMPLE"
+              },
+              "date": "2026-09-09",
+              "id": "example-order",
+              "jurisdiction": "US-CA/EXAMPLE",
+              "lines": [
+                {
+                  "id": "item-1",
+                  "productId": "example-item",
+                  "quantity": "0.3"
+                }
+              ],
+              "pricing": "exclusive",
+              "scenario": "ordinary-domestic"
+            }
+          },
+          "limitations": [
+            "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
+            "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
+            "This result is a calculation, not government registration, a tax return or compliance certification."
+          ],
+          "digest": "80f9c3ba2da7a7c38ee97bfcd9f315900ba31f785c65255f14d76f21419322ad"
+        },
+        "digest": "8bd7a6cd83662de3282b8cad8bba528d5a4aac58157b8c74b6bbd6784eba594b"
+      },
+      "credits": [
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "8bd7a6cd83662de3282b8cad8bba528d5a4aac58157b8c74b6bbd6784eba594b",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C1",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5.00",
+              "tax": "0.36",
+              "gross": "5.36",
+              "rate": "7.25"
+            }
+          ],
+          "net": "5.00",
+          "tax": "0.36",
+          "gross": "5.36",
+          "legalStatus": "review-required",
+          "digest": "a6eb8177a98e90277a872d5d59ad2c2edc52902d39626cb9ad2492280f7e0e9f"
+        },
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "8bd7a6cd83662de3282b8cad8bba528d5a4aac58157b8c74b6bbd6784eba594b",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C2",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [
+            "a6eb8177a98e90277a872d5d59ad2c2edc52902d39626cb9ad2492280f7e0e9f"
+          ],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5.00",
+              "tax": "0.36",
+              "gross": "5.36",
+              "rate": "7.25"
+            }
+          ],
+          "net": "5.00",
+          "tax": "0.36",
+          "gross": "5.36",
+          "legalStatus": "review-required",
+          "digest": "7bb11c9d1dce3a5e18418c990601343e31278c5aa980cd80dd74150337898928"
+        },
+        {
+          "kind": "credit-note",
+          "version": 1,
+          "status": "draft",
+          "originalDigest": "8bd7a6cd83662de3282b8cad8bba528d5a4aac58157b8c74b6bbd6784eba594b",
+          "originalNumber": "INV/2026/1",
+          "originalDate": "2026-09-09",
+          "request": {
+            "date": "2026-09-09",
+            "lines": [
+              {
+                "lineId": "item-1",
+                "quantity": "0.1"
+              }
+            ],
+            "number": "C3",
+            "reason": "Frozen fictional legacy metered credit",
+            "review": {
+              "after": "2027-01-01",
+              "by": "Example reviewer (fictional)",
+              "on": "2026-09-09",
+              "reference": "TEST DATA ONLY: replace with an actual reviewed business decision"
+            }
+          },
+          "previousDigests": [
+            "a6eb8177a98e90277a872d5d59ad2c2edc52902d39626cb9ad2492280f7e0e9f",
+            "7bb11c9d1dce3a5e18418c990601343e31278c5aa980cd80dd74150337898928"
+          ],
+          "lines": [
+            {
+              "lineId": "item-1",
+              "quantity": "0.1",
+              "net": "5.00",
+              "tax": "0.37",
+              "gross": "5.37",
+              "rate": "7.25"
+            }
+          ],
+          "net": "5.00",
+          "tax": "0.37",
+          "gross": "5.37",
+          "legalStatus": "review-required",
+          "digest": "397bb3e559de0663a9387d4e84954b73abd8110c4d606abb8510c4a1917f67b0"
+        }
+      ]
+    }
+  ]
+}

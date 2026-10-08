@@ -6,6 +6,7 @@ import {
   fingerprint,
   formatReport,
   shouldFail,
+  validateAuditOptions,
 } from "../core/report";
 import {
   checkContract,
@@ -19,51 +20,69 @@ import type {
   Finding,
   Severity,
 } from "../core/types";
+import { createDeadline } from "./deadline";
+import { createAxePageScope } from "./axe-scope";
 export interface PageAuditOptions extends AuditOptions, CollectOptions {
   accessibility?: boolean;
   /** Electron cannot open axe's aggregation target. Same-origin mode excludes cross-origin frames. */
   accessibilityMode?: "standard" | "same-origin";
   /** Wait for your app's readiness marker rather than an arbitrary delay. */
   readySelector?: string;
+  /** Total readiness, collection and accessibility budget, in milliseconds. */
   timeout?: number;
 }
 export async function auditPage(
   page: Page,
   options: PageAuditOptions = {},
 ): Promise<AuditReport> {
+  validateAuditOptions(options);
   if (
     options.accessibilityMode !== undefined &&
     !["standard", "same-origin"].includes(options.accessibilityMode)
   )
     throw new TypeError("Unknown accessibilityMode");
+  const deadline = createDeadline(options.timeout ?? 10000, "Page audit");
   // DOMContentLoaded can precede stylesheet completion and produce false size findings.
-  await page.waitForLoadState("load", { timeout: options.timeout ?? 10000 });
-  if (options.readySelector)
-    await page
-      .locator(options.readySelector)
-      .waitFor({ state: "visible", timeout: options.timeout ?? 10000 });
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-  });
-  const snapshot = await page.evaluate(
-    collectSnapshot,
-    options.maxElements === undefined
-      ? {}
-      : { maxElements: options.maxElements },
+  await deadline.run("page load", () =>
+    page.waitForLoadState("load", { timeout: deadline.remaining("page load") }),
+  );
+  const readySelector = options.readySelector;
+  if (readySelector)
+    await deadline.run("readiness selector", () =>
+      page.locator(readySelector).waitFor({
+        state: "visible",
+        timeout: deadline.remaining("readiness selector"),
+      }),
+    );
+  await deadline.run("font readiness", () =>
+    page.evaluate(async () => {
+      await document.fonts.ready;
+    }),
+  );
+  const snapshot = await deadline.run("snapshot collection", () =>
+    page.evaluate(
+      collectSnapshot,
+      options.maxElements === undefined
+        ? {}
+        : { maxElements: options.maxElements },
+    ),
   );
   // Apply configuration once after combining engines, so suppression accounting is retained.
   const report = auditSnapshot(snapshot, { ...options, suppressions: [] });
   if (options.accessibility === false) {
     report.coverage.limitations.push("axe accessibility checks were disabled.");
   } else {
-    const { default: AxeBuilder } = await import("@axe-core/playwright").catch(
-      () => {
-        throw new Error(
-          "Accessibility checks require @axe-core/playwright. Add it with your package manager, or run glocon init --ui.",
-        );
-      },
+    const { default: AxeBuilder } = await deadline.run(
+      "accessibility setup",
+      () =>
+        import("@axe-core/playwright").catch(() => {
+          throw new Error(
+            "Accessibility checks require @axe-core/playwright. Add it with your package manager, or run glocon init --ui.",
+          );
+        }),
     );
-    let builder = new AxeBuilder({ page }).withTags([
+    const axePages = createAxePageScope(page);
+    let builder = new AxeBuilder({ page: axePages.page }).withTags([
       "wcag2a",
       "wcag2aa",
       "wcag21a",
@@ -81,7 +100,15 @@ export async function auditPage(
       .filter(([id, value]) => id.startsWith("axe/") && value === "off")
       .map(([id]) => id.slice(4));
     if (disabled.length) builder = builder.disableRules(disabled);
-    const result = await builder.analyze();
+    const result = await (async () => {
+      try {
+        return await deadline.run("accessibility checks", () =>
+          builder.analyze(),
+        );
+      } finally {
+        await axePages.close();
+      }
+    })();
     report.coverage.rules.push(
       ...new Set(
         [
@@ -92,6 +119,23 @@ export async function auditPage(
         ].map((rule) => `axe/${rule.id}`),
       ),
     );
+    const outcomes = (report.coverage.outcomes ??= []);
+    for (const [results, status] of [
+      [result.passes, "passed"],
+      [result.violations, "failed"],
+      [result.incomplete, "manual-review"],
+    ] as const) {
+      for (const rule of results) {
+        if (!rule.nodes.length)
+          outcomes.push({ ruleId: `axe/${rule.id}`, status });
+        for (const node of rule.nodes)
+          outcomes.push({
+            ruleId: `axe/${rule.id}`,
+            target: JSON.stringify(node.target),
+            status,
+          });
+      }
+    }
     for (const violation of result.violations) {
       for (const node of violation.nodes) {
         const ruleId = `axe/${violation.id}`;
@@ -122,7 +166,14 @@ export async function auditPage(
         `Manual review required: axe/${incomplete.id} (${incomplete.nodes.length} nodes). ${incomplete.helpUrl}`,
       );
   }
-  return createReport(report.source, report.findings, report.coverage, options);
+  const combined = createReport(
+    report.source,
+    report.findings,
+    report.coverage,
+    options,
+  );
+  deadline.remaining("report creation");
+  return combined;
 }
 
 /** Executes only scenarios supplied by the developer. Each setup must enter a settled state. */
@@ -132,6 +183,7 @@ export async function auditStates<T extends UIContract>(
   scenarios: Partial<Record<keyof T["states"], (page: Page) => Promise<void>>>,
   options: AuditOptions = {},
 ): Promise<AuditReport> {
+  validateAuditOptions(options);
   defineContract(contract);
   for (const state of Object.keys(scenarios))
     if (!Object.hasOwn(contract.states, state))

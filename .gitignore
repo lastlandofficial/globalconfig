@@ -9,3 +9,5 @@ coverage/
 .migration-history/
 test-results/
 playwright-report/
+
+.glocon/

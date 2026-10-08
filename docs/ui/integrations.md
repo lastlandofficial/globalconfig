@@ -73,6 +73,14 @@ This is an adapter API, not an Appium/Detox integration. It does not validate hi
 
 The optional `npm run test:native:android` installs the packed library into a fresh Expo 57 fixture and runs it in Expo Go on a selected disposable Android emulator. Set `GLOCON_NATIVE_SERIAL` to the emulator serial and `GLOCON_EXPO_GO_APK` to the official Expo Go 57.0.9 APK. The tools require Node 22.13+, adb and a booted emulator; they are installed in a temporary directory. Android 15, React Native 0.86.2 and static Hermes were verified on 2026-10-08: real measured controls, invoice/credit button presses, remaining-quantity rejection, light/dark appearance and detection of a visible tiny unnamed control. The run also checks large exact currency display and DST behavior. It retains result/events JSON and screenshots; no iOS or standalone production APK coverage is implied.
 
+## Audit deadlines and runtime validation
+
+`auditPage(page, { timeout })` uses one total deadline for readiness, fonts, DOM collection and axe analysis; its default is 10,000 milliseconds. It accepts a positive safe integer no greater than 2,147,483,647 milliseconds. A timeout rejects the audit while leaving the caller-owned Page under the existing test harness's control. The standalone CLI's `--timeout` defaults to 30,000 milliseconds and covers launch, navigation, auditing and output; that CLI closes its own browser.
+
+Core report, contract and rule entry points validate JavaScript inputs as well as TypeScript types. Unknown severities or failure thresholds, invalid numeric policy, malformed suppression records and invalid custom-rule metadata throw rather than generating a report that can silently pass.
+
+The DOM collector combines ignore declarations from ancestors with an element's own declarations. It respects computed visibility overrides, hidden descendants and readable label text from `display: contents`. These improvements still concern light-DOM observations; they do not establish keyboard reachability, screen-reader behavior or functional recovery.
+
 ## Extend the rule engine
 
 ```ts

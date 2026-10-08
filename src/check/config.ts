@@ -4,11 +4,14 @@ import { resolve } from "node:path";
 import type { PageAuditOptions } from "../ui/playwright/index";
 import type { Severity } from "../ui/core/types";
 import { auditSnapshot } from "../ui/core/engine";
+import { expectedDestination } from "./destination";
 
 export interface CheckPage {
   path: string;
   name?: string;
   readySelector?: string;
+  /** Reviewed initial destination after redirects; defaults to path. */
+  expectedURL?: string;
   auth?: boolean;
   scenarios?: CheckScenario[];
 }
@@ -38,6 +41,10 @@ export interface CheckConfig {
   audit?: PageAuditOptions;
   failOn?: Severity | "none";
   screenshots?: boolean;
+  /** Number of isolated page checks to run at once (default 2). */
+  concurrency?: number;
+  /** Shared startup, authentication and page-check deadline in milliseconds. */
+  runTimeout?: number;
 }
 export const configName = "glocon.check.json";
 export function record(value: unknown): value is Record<string, unknown> {
@@ -101,6 +108,8 @@ export function validateCheckConfig(input: unknown): CheckConfig {
       "audit",
       "failOn",
       "screenshots",
+      "concurrency",
+      "runTimeout",
     ],
     "Check configuration",
   );
@@ -130,7 +139,11 @@ export function validateCheckConfig(input: unknown): CheckConfig {
   for (const entry of input.pages) {
     const page: Record<string, unknown> =
       typeof entry === "string" ? { path: entry } : record(entry) ? entry : {};
-    keys(page, ["path", "name", "readySelector", "auth", "scenarios"], "Page");
+    keys(
+      page,
+      ["path", "name", "readySelector", "expectedURL", "auth", "scenarios"],
+      "Page",
+    );
     string(page.path, "Page path");
     const url = pageURL(page.path, input.baseURL);
     if (paths.has(url.href))
@@ -139,8 +152,13 @@ export function validateCheckConfig(input: unknown): CheckConfig {
     if (page.name !== undefined) string(page.name, "Page name");
     if (page.readySelector !== undefined)
       string(page.readySelector, "Page readySelector");
+    if (page.expectedURL !== undefined) {
+      string(page.expectedURL, "Page expectedURL");
+      expectedDestination(page.expectedURL, input.baseURL);
+    }
     boolean(page.auth, "Page auth");
-    if (page.scenarios !== undefined) validateScenarios(page.scenarios);
+    if (page.scenarios !== undefined)
+      validateScenarios(page.scenarios, input.baseURL);
     if (page.auth && !input.auth)
       throw new Error(
         "Protected pages require auth.storageState and auth.readySelector.",
@@ -240,6 +258,10 @@ export function validateCheckConfig(input: unknown): CheckConfig {
   )
     throw new Error("failOn must be error, warning, info, or none.");
   boolean(input.screenshots, "screenshots");
+  if (input.concurrency !== undefined)
+    positive(input.concurrency, "concurrency", 12);
+  if (input.runTimeout !== undefined)
+    positive(input.runTimeout, "runTimeout", 86400000);
   return input as unknown as CheckConfig;
 }
 export function defineCheckConfig(config: CheckConfig): CheckConfig {
