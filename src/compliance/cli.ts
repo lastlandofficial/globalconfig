@@ -2,9 +2,13 @@ import { parseArgs } from "node:util";
 import { readFile, writeFile, mkdir, access, rm } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { validateComplianceConfig, obj, keys } from "./validation";
-import { createComplianceExample } from "./example";
+import { validateComplianceConfig } from "./validation";
+import {
+  createComplianceExample,
+  createMeteredComplianceExample,
+} from "./example";
 import { calculateOrder } from "./engine";
+import { checkFinancialCases } from "./check";
 import {
   createInvoiceDraft,
   validateInvoice,
@@ -27,9 +31,9 @@ import type {
 } from "./types";
 const help = `glocon — tax and invoice workflows
 
-  glocon compliance init --country IN|JP|US [--demo]
+  glocon compliance init --country IN|JP|US [--demo [--metered]]
   glocon compliance init --input reviewed-config.json
-  glocon compliance check
+  glocon compliance check [--scope invoices|quotes|both]
   glocon compliance lock
   glocon compliance explain <requirement-id>
   glocon compliance rules diff <candidate-config.json>
@@ -78,6 +82,8 @@ export async function runComplianceCommand(args: string[]) {
       details: { type: "string" },
       output: { type: "string" },
       record: { type: "boolean" },
+      scope: { type: "string" },
+      metered: { type: "boolean" },
     },
   });
   if (v.help) {
@@ -88,8 +94,8 @@ export async function runComplianceCommand(args: string[]) {
     dir = resolve(v.dir ?? "."),
     file = resolve(dir, v.config ?? "glocon.compliance.json");
   const allowed: Record<string, string[]> = {
-    "compliance init": ["country", "demo", "input"],
-    "compliance check": [],
+    "compliance init": ["country", "demo", "input", "metered"],
+    "compliance check": ["scope"],
     "compliance lock": [],
     "compliance explain": [],
     "compliance rules": [],
@@ -125,8 +131,14 @@ export async function runComplianceCommand(args: string[]) {
       console.log(`Preserved ${file}. Run glocon compliance check.`);
       return;
     }
-    if (v.input && (v.demo || v.country))
-      throw Error("--input cannot be combined with --demo or --country.");
+    if (v.input && (v.demo || v.country || v.metered))
+      throw Error(
+        "--input cannot be combined with --demo, --metered or --country.",
+      );
+    if (v.metered && !v.demo)
+      throw Error(
+        "--metered requires --demo. Use --input with your reviewed billing policy for production.",
+      );
     let config: ComplianceConfig,
       example: ReturnType<typeof createComplianceExample>;
     if (v.input) {
@@ -151,10 +163,9 @@ export async function runComplianceCommand(args: string[]) {
         throw Error(
           "Choose --country IN, JP, or US; use --input for reviewed configuration.",
         );
-      example = createComplianceExample(
-        country as CountryCode,
-        new Date().toISOString().slice(0, 10),
-      );
+      example = (
+        v.metered ? createMeteredComplianceExample : createComplianceExample
+      )(country as CountryCode, new Date().toISOString().slice(0, 10));
       config = example.config;
       if (!v.demo) {
         config.business.environment = "production";
@@ -169,7 +180,6 @@ export async function runComplianceCommand(args: string[]) {
       }
     }
     config.$schema = "./node_modules/glocon/docs/compliance/config.schema.json";
-    const sample = calculateOrder(config, example.order);
     const cases = v.input
       ? []
       : [
@@ -177,15 +187,7 @@ export async function runComplianceCommand(args: string[]) {
             name: "example order",
             order: example.order,
             details: example.details,
-            expected:
-              sample.status === "ready"
-                ? {
-                    status: "ready",
-                    net: sample.value.net,
-                    tax: sample.value.tax,
-                    gross: sample.value.gross,
-                  }
-                : { status: "ready" },
+            expected: v.demo ? { ...example.expected } : { status: "ready" },
           },
         ];
     const files: [[string, unknown], ...[string, unknown][]] = [
@@ -297,97 +299,20 @@ export async function runComplianceCommand(args: string[]) {
       result.status === "ready" ? 0 : result.status === "invalid" ? 1 : 2;
     return;
   }
-  const cases = (await readJSON(
-    resolve(dir, "glocon.compliance.cases.json"),
-  )) as {
-    name: string;
-    order: Order;
-    details?: InvoiceDetails;
-    expected: {
-      status: string;
-      net?: string;
-      tax?: string;
-      gross?: string;
-      issueCodes?: string[];
-    };
-  }[];
-  if (!Array.isArray(cases) || !cases.length || cases.length > 1000)
-    throw Error(
-      "Add 1–1000 transaction cases to glocon.compliance.cases.json.",
-    );
-  let complete = 0;
-  const results = cases.map((c) => {
-    obj(c);
-    keys(c, ["name", "order", "details", "expected"]);
-    obj(c.expected);
-    keys(c.expected, ["status", "net", "tax", "gross", "issueCodes"]);
-    if (c.expected.status === "ready" && c.expected.issueCodes !== undefined)
-      throw Error("Ready cases cannot expect issue codes.");
-    if (
-      c.expected.status !== "ready" &&
-      ["net", "tax", "gross"].some((k) => k in c.expected)
-    )
-      throw Error("Incomplete cases cannot expect calculated totals.");
-    if (
-      c.expected.issueCodes !== undefined &&
-      (!Array.isArray(c.expected.issueCodes) ||
-        c.expected.issueCodes.some((x) => typeof x !== "string"))
-    )
-      throw Error("Expected issueCodes must be strings.");
-    if (
-      !c.name ||
-      !c.expected ||
-      !["ready", "needs-context", "unsupported", "invalid"].includes(
-        c.expected.status,
-      )
-    )
-      throw Error("Every case needs a name and expected status.");
-    const result = c.details
-      ? createInvoiceDraft(config, c.order, c.details)
-      : calculateOrder(config, c.order);
-    let passed = result.status === c.expected.status;
-    if (result.status === "ready") {
-      complete++;
-      const totals =
-        "calculation" in result.value ? result.value.calculation : result.value;
-      for (const field of ["net", "tax", "gross"] as const)
-        if (
-          c.expected[field] !== undefined &&
-          totals[field] !== c.expected[field]
-        )
-          passed = false;
-    } else if (
-      c.expected.issueCodes?.some(
-        (code) => !result.issues.some((i) => i.code === code),
-      )
-    )
-      passed = false;
-    return {
-      name: c.name,
-      passed,
-      status: result.status,
-      ...(result.status !== "ready"
-        ? { issues: result.issues }
-        : { digest: result.value.digest }),
-    };
-  });
-  const code =
-    !complete ||
-    results.some(
-      (r) =>
-        !r.passed &&
-        (r.status === "needs-context" || r.status === "unsupported"),
-    )
-      ? 2
-      : results.some((r) => !r.passed)
-        ? 1
-        : 0;
+  const suite = checkFinancialCases(
+    config,
+    await readJSON(resolve(dir, "glocon.compliance.cases.json")),
+    v.scope ? { scope: v.scope as "quotes" | "invoices" | "both" } : {},
+  );
+  const results = suite.cases;
+  const code = suite.exitCode;
   const report = {
     version: 1,
     createdAt: new Date().toISOString(),
     environment: config.business.environment,
     configDigest: digest(config),
     cases: results,
+    coverage: suite.coverage,
     exitCode: code,
     scope:
       "Fixture expectations and selected invoice checks; no legal certification or network source check.",
@@ -401,10 +326,12 @@ export async function runComplianceCommand(args: string[]) {
   if (v.json) print(report);
   else
     console.log(
-      `${results.filter((r) => r.passed).length}/${results.length} financial cases passed. ${complete} ready transaction(s).\n${results
+      `${results.filter((r) => r.passed).length}/${results.length} financial cases passed. ${suite.coverage.quotes.ready} ready quote(s), ${suite.coverage.invoices.ready} ready invoice(s). Acceptance scope: ${suite.coverage.scope}.\n${results
         .filter((r) => !r.passed)
         .map((r) => `${r.name}: ${r.status}`)
-        .join("\n")}\nReport: .glocon/compliance-report.json`,
+        .join(
+          "\n",
+        )}\n${suite.coverage.gaps.join("\n")}\nReport: .glocon/compliance-report.json`,
     );
   process.exitCode = code;
 }

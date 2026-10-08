@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.0 (unreleased)
+
+- Add reviewed metered billing: decimal-string quantities, higher-precision catalog prices, independent line rounding, versioned snapshots, exact cumulative fractional credits and transactional SQLite limits.
+- Verify a packaged Linux Electron application and add explicit same-origin accessibility analysis for contexts that cannot open axe's standard aggregation target.
+- Preserve exact currency digits on Hermes/older Intl runtimes, using locale grouping and numeral parts instead of lossy decimal-string coercion. Unsafe currency-name formatting requires a compatible Intl implementation.
+- Mark truncated DOM collection incomplete, fail it independently of finding severity, and prevent partial runs from creating or resolving baselines. Explicit partial-coverage opt-in remains visible in reports.
+- Verify standalone audit destinations before and after scans; require explicit expected destinations for legitimate redirects.
+- Validate all native frame coordinates/dimensions, viewport measurements, IDs and optional metadata before applying rules.
+- Require exact financial assertions and declared quote/invoice acceptance scope, with invoice coverage by default and specific expected rejection codes.
+- Preserve existing 0.6.0 calculation and invoice snapshots with committed replay fixtures.
+- Align aggregate and order India rounding defaults. **Migration:** `calculateTax` now defaults to rounding each intra-state component. Pass `indiaRounding: 'combined'` to retain its pre-0.7 behavior; use the same policy in order configuration. Existing order snapshots without the new option retain their original component policy.
+- Fix minor-unit decoder bounds and reject encoder rounding that crosses the shared major-unit magnitude bound.
+- Show stale legal evidence explicitly in readable plans; retain the distinction between recorded progress and current-revision evidence.
+- Upgrade vulnerable development tooling, make axe an optional peer, and preserve existing package sources during setup.
+- Add a public registry/default-install verification gate and correct release, discovery, and coverage documentation.
+- Apply Prettier to source, scripts and tests for readable review; provide repeatable formatting commands.
+
 ## 0.6.0
 
 - Add `glocon/compliance`: reviewed business/catalog configuration, dated treatment resolution, mixed-rate order calculations, inclusive/exclusive prices, discounts, grouped rounding, and reproducible snapshots.

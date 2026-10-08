@@ -1,0 +1,440 @@
+{
+  "version": 1,
+  "releaseCandidate": "0.7.0",
+  "recordedOn": "2026-10-08",
+  "goalComplete": false,
+  "engineeringFindings": [
+    {
+      "id": "distribution",
+      "priority": "P1",
+      "status": "external-release-pending",
+      "problem": "Local financial release is absent from npm latest; default install serves 0.5.0.",
+      "repair": "Add registry latest/integrity/fresh-install/CLI verification, release-event CI, truthful installation documentation, and preserve existing archive dependencies during setup.",
+      "evidence": [
+        "scripts/check-distribution.mjs",
+        ".github/workflows/distribution.yml",
+        "test/cli.test.mjs",
+        "tests/check.test.ts"
+      ],
+      "remaining": "Publish reviewed 0.7.0 with npm authorization, set latest, run check:distribution; never overwrite 0.6.0 release assets."
+    },
+    {
+      "id": "vulnerable-tooling",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "Known advisories affect development tooling.",
+      "repair": "Upgrade Vitest to the patched 4.1 line, Vite 6.4, source-map-js 1.2.2 through its dependency; regenerate and clean-install the lock.",
+      "evidence": [
+        "package-lock.json",
+        "npm audit: zero vulnerabilities including development dependencies"
+      ]
+    },
+    {
+      "id": "stale-evidence-text",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "Text legal plans concealed assertions recorded against old rule revisions.",
+      "repair": "Print verification state and current/review-required/not-recorded evidence counts without relabeling asserted completion as verified operation.",
+      "evidence": [
+        "test/cli.test.mjs: readable plans visibly mark old assertions"
+      ]
+    },
+    {
+      "id": "redirect-false-pass",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "Standalone audits could pass a login destination instead of the requested page.",
+      "repair": "Verify origin, normalized path, query and fragment before and after scanning; legitimate redirects require explicit expectedURL.",
+      "evidence": [
+        "tests/browser.spec.ts: unexpected redirect and explicit destination tests"
+      ]
+    },
+    {
+      "id": "truncation-false-pass",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "A DOM cap could silently exclude defective controls and still pass.",
+      "repair": "Collect structured counts, fail incomplete scans with exit 2 regardless of finding threshold, disclose opt-in partial coverage, prohibit partial baselines and false resolution.",
+      "evidence": [
+        "tests/core.test.ts",
+        "tests/check.test.ts",
+        "tests/browser.spec.ts",
+        "docs/ui/report.schema.json"
+      ]
+    },
+    {
+      "id": "native-invalid-measurement",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "Incomplete native frames could be treated as measured controls.",
+      "repair": "Require all finite coordinates/dimensions, positive finite viewport, unique IDs, and correctly typed optional metadata. Copy caller measurements.",
+      "evidence": [
+        "tests/core.test.ts: incomplete native rectangles and malformed viewports"
+      ]
+    },
+    {
+      "id": "financial-ci-coverage",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "Status-only and quote-only fixtures could pass invoice readiness.",
+      "repair": "Require all reviewed expected totals in every ready fixture, issue codes for rejection fixtures, invoice coverage by default, explicit quotes/both scopes, and structured coverage gaps.",
+      "evidence": [
+        "src/compliance/check.ts",
+        "tests/compliance.test.ts",
+        "docs/compliance/financial-cases.schema.json"
+      ]
+    },
+    {
+      "id": "india-rounding-consistency",
+      "priority": "P2",
+      "status": "verified",
+      "problem": "Aggregate and order APIs used different India intra-state policies.",
+      "repair": "Share rounding logic and default to component rounding; provide explicit combined compatibility policy across both APIs and reject negative-net results. Record optional policy in snapshots.",
+      "evidence": [
+        "tests/compliance.test.ts: shared India rounding policy",
+        "test/order-reference.test.mjs",
+        "CHANGELOG.md: 0.7 migration",
+        "test/compliance-compat.test.mjs",
+        "fixtures/compliance-v0.6.snapshots.json"
+      ]
+    },
+    {
+      "id": "money-roundtrip-bounds",
+      "priority": "P2",
+      "status": "verified",
+      "problem": "Accepted minor-unit encodings could exceed decoder bounds.",
+      "repair": "Apply both bounds in major units, permit the full encoded range, reject rounding carry beyond the common bound.",
+      "evidence": [
+        "test/currency.test.mjs: exact bounds and rounding carry"
+      ]
+    },
+    {
+      "id": "documentation-drift",
+      "priority": "P2",
+      "status": "verified",
+      "problem": "Malformed README table, outdated route discovery and runtime/release claims.",
+      "repair": "Repair table and distinguish release candidate/public versions, static Next route discovery, tested runtimes, evidence assertions, exact CI acceptance, optional tooling and policy migration.",
+      "evidence": [
+        "README.md",
+        "docs/coverage.md",
+        "docs/ui/integrations.md",
+        "docs/compliance/README.md",
+        "docs/publishing.md"
+      ]
+    },
+    {
+      "id": "hermes-currency-precision",
+      "priority": "P1",
+      "status": "verified",
+      "problem": "Actual Android Hermes coerces decimal strings to doubles while formatting money and displayed 9007199254740993.01 as 9007199254740994.00.",
+      "repair": "Detect exact-string Intl support; preserve exact numeric digits through locale parts on legacy runtimes; reject unsafe currency-name grammar instead of rounding silently.",
+      "evidence": [
+        "test/currency.test.mjs: 567 legacy-Intl cases across nine locales, three currencies and display modes",
+        "src/currency-format.ts",
+        "Android CI runtime evidence and regression in scripts/check-native.mjs",
+        "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427"
+      ]
+    }
+  ],
+  "broaderReadiness": [
+    {
+      "id": "packaging-cost",
+      "status": "verified",
+      "repair": "Axe is an optional peer and loaded only for accessibility; UI setup installs it explicitly. Browser entry sizes have measured budgets.",
+      "evidence": [
+        "scripts/ui-package-smoke.mjs",
+        "scripts/check-bundles.mjs"
+      ],
+      "remaining": "Temporal remains part of the full global client; use selective currency/tax/ui imports when time helpers are unnecessary."
+    },
+    {
+      "id": "readability",
+      "status": "verified",
+      "repair": "Format source/scripts/tests with Prettier and add repeatable format/check commands."
+    },
+    {
+      "id": "independent-arithmetic",
+      "status": "verified",
+      "repair": "Commit distinct BigInt/rational oracles for 1500 ordinary and 1500 metered seeded mixed-rate orders; cover inclusive/exclusive prices, discounts and independent line/tax rounding without engine helpers.",
+      "evidence": [
+        "test/order-reference.test.mjs"
+      ]
+    },
+    {
+      "id": "browser-matrix",
+      "status": "verified",
+      "repair": "Add Chromium/Firefox/WebKit CI and real rendered-page tests across all three engines.",
+      "evidence": [
+        "playwright.config.ts",
+        ".github/workflows/ci.yml",
+        "scripts/check-browser-matrix.mjs"
+      ]
+    },
+    {
+      "id": "runtime-and-install-matrix",
+      "status": "verified",
+      "repair": "Validate Node 20/22/24, isolated ESM/CJS/TypeScript consumers, clean Vite/Next integrations, and package-manager installation.",
+      "remaining": "Node 20 lacks built-in SQLite and three SQLite tests are explicitly skipped; SQLite examples require 22.13+."
+    },
+    {
+      "id": "fractional-billing",
+      "status": "verified",
+      "current": "Reviewed precision policy, exact decimal-string quantities, high-precision catalog prices, explicit line rounding, versioned calculation/lock snapshots and exact fractional credits implemented.",
+      "remaining": "Validate the billing decision and precision policy with the target business; the library does not determine product classification or legal applicability.",
+      "evidence": [
+        "tests/billing.test.ts",
+        "test/order-reference.test.mjs",
+        "test/compliance-store.test.mjs",
+        "test/compliance-compat.test.mjs",
+        "test/compliance-cli.test.mjs",
+        "tests/browser.spec.ts",
+        "scripts/ui-package-smoke.mjs",
+        "scripts/check-electron.mjs"
+      ]
+    },
+    {
+      "id": "additional-tax-profiles",
+      "status": "product-scope-pending",
+      "current": "Selected ordinary India, Japan and California workflows; unsupported scenarios fail explicitly.",
+      "remaining": "Select target jurisdictions/document types and obtain primary-source rules and business review; global tax coverage cannot be inferred from a code audit."
+    },
+    {
+      "id": "external-issuance-and-payments",
+      "status": "external-integration-pending",
+      "current": "Validated drafts and financial credits; SQLite records drafts and reserves numbers.",
+      "remaining": "Real signing, e-invoice registration, filing, remittance, payment refunds and legally delivered credit documents require chosen external services and business authorization."
+    },
+    {
+      "id": "legal-operational-proof",
+      "status": "external-validation-pending",
+      "current": "Revision-aware user assertions and source byte-change checks are clearly labeled.",
+      "remaining": "Operational privacy/control verification, retained evidence and semantic interpretation of changed laws require actual application evidence and qualified review."
+    },
+    {
+      "id": "native-and-electron",
+      "status": "verified-representative-matrix",
+      "current": "Packaged Linux Electron and Android 15 Expo Go/Hermes fixtures pass: exact currency/time/metered arithmetic, measured native controls, real invoice and fractional-credit button interactions, over-credit rejection, light/dark appearance, and deliberate defect detection. Actual Hermes execution exposed and now verifies the repaired legacy Intl exact-digit formatter.",
+      "remaining": "iOS, other desktop operating systems, standalone production APKs and application-specific/native assistive-technology checks require their own verification.",
+      "evidence": [
+        "scripts/check-electron.mjs",
+        "fixtures/electron",
+        "scripts/check-native.mjs",
+        "fixtures/native",
+        "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427"
+      ]
+    },
+    {
+      "id": "component-system",
+      "status": "product-scope-pending",
+      "current": "Six React primitives and opt-in CSS; documentation calls them primitives.",
+      "remaining": "Select concrete application interactions/design requirements before expanding to a full component system."
+    },
+    {
+      "id": "independent-user-trials",
+      "status": "external-validation-pending",
+      "current": "Automated onboarding and false-pass probes are tested.",
+      "remaining": "Recruit independent developers for fresh onboarding and measure findings/false positives on actual applications; automated fixtures do not establish usability.",
+      "preparedArtifact": "docs/readiness-trial-template.json"
+    }
+  ],
+  "validation": {
+    "node22": {
+      "nodeTests": 75,
+      "unitTests": 60,
+      "skipped": 0
+    },
+    "node20": {
+      "passed": 72,
+      "skipped": 3,
+      "skipReason": "No built-in node:sqlite"
+    },
+    "node24": {
+      "passed": 75,
+      "skipped": 0
+    },
+    "independentArithmetic": {
+      "orders": 3000,
+      "ordinaryOrders": 1500,
+      "ordinaryCombinations": 24,
+      "meteredOrders": 1500,
+      "meteredCombinations": 96,
+      "mixedRatesInEveryCountry": true
+    },
+    "firefox": {
+      "renderedPageTests": 10,
+      "passed": 10
+    },
+    "frameworks": [
+      {
+        "framework": "Vite",
+        "checks": 18,
+        "firstReportMinutes": 0.51,
+        "baselineAndNewRegression": true,
+        "financialLifecycle": true,
+        "timingEnvironment": "Automated clean-install GitHub Actions fixture, not an independent-user trial"
+      },
+      {
+        "framework": "Next.js",
+        "checks": 20,
+        "firstReportMinutes": 0.65,
+        "baselineAndNewRegression": true,
+        "financialLifecycle": true,
+        "loginAndExpiredSession": true,
+        "timingEnvironment": "Automated clean-install GitHub Actions fixture, not an independent-user trial"
+      }
+    ],
+    "dependencies": {
+      "knownVulnerabilities": 0,
+      "includesDevelopment": true
+    },
+    "chromium": {
+      "tests": 22,
+      "passed": 22
+    },
+    "webkit": {
+      "renderedPageTests": 10,
+      "passed": 10,
+      "environment": "Ubuntu GitHub Actions; earlier local verification used temporary Ubuntu 24.04"
+    },
+    "packageManagers": [
+      "npm",
+      "pnpm",
+      "Yarn",
+      "Bun"
+    ],
+    "checkAll": "passed",
+    "formatCheck": "passed",
+    "distribution": "intentionally fails: npm latest 0.5.0 differs from candidate 0.7.0",
+    "bundleMeasurements": [
+      {
+        "name": "currency formatter",
+        "bytes": 36156,
+        "gzipBytes": 14644,
+        "maxBytes": 37000,
+        "maxGzip": 15000
+      },
+      {
+        "name": "time utilities",
+        "bytes": 197440,
+        "gzipBytes": 61190,
+        "maxBytes": 205000,
+        "maxGzip": 64000
+      },
+      {
+        "name": "global client",
+        "bytes": 242524,
+        "gzipBytes": 77020,
+        "maxBytes": 250000,
+        "maxGzip": 82000
+      },
+      {
+        "name": "UI core",
+        "bytes": 10151,
+        "gzipBytes": 3922,
+        "maxBytes": 12000,
+        "maxGzip": 5000
+      },
+      {
+        "name": "financial core",
+        "bytes": 56882,
+        "gzipBytes": 22658,
+        "maxBytes": 60000,
+        "maxGzip": 24000
+      }
+    ],
+    "legacySnapshotReplay": {
+      "release": "0.6.0",
+      "calculations": 6,
+      "invoices": 6,
+      "digestsUnchanged": true,
+      "credits": 9
+    },
+    "meteredBilling": "passed: independent arithmetic, schema/CLI, saved credit replay, SQLite concurrency/retry/restart, browser and TypeScript consumers",
+    "electron": {
+      "packaged": true,
+      "platform": "linux",
+      "architecture": "x64",
+      "electron": "44.7.0",
+      "node": "24.21.0",
+      "chromium": "152.0.7977.130",
+      "rendererFinancialAndIntl": true,
+      "contextIsolation": true,
+      "sqliteRetryAndRestart": true,
+      "fractionalCreditTotals": [
+        "5",
+        "6",
+        "6"
+      ],
+      "responsiveAudit": true,
+      "deliberateDefectDetected": true
+    },
+    "meteredPackageManagerChecks": "all four fresh installations execute exact metered invoices and three fractional credits in ESM/CJS",
+    "nativeAndroid": {
+      "android": "15",
+      "expo": "57.0.27",
+      "expoGo": "57.0.9",
+      "reactNative": {
+        "minor": 86,
+        "prerelease": null,
+        "patch": 2,
+        "major": 0
+      },
+      "hermes": {
+        "Bytecode Version": 98,
+        "Static Hermes": true,
+        "Builtins Frozen": false,
+        "VM Experiments": 0,
+        "Build": "Release",
+        "GC": "hades (concurrent)",
+        "OSS Release Version": "for RN 0.86.2",
+        "Debugger Enabled": true,
+        "CommonJS Modules": "None"
+      },
+      "nativeMeasuredLayout": true,
+      "nativeInteractions": true,
+      "darkAppearance": true,
+      "financialGross": "17",
+      "fractionalCredits": [
+        "5",
+        "6",
+        "6"
+      ],
+      "overCreditRejected": true,
+      "deliberateDefectsDetected": true,
+      "scope": "One Android Expo Go emulator fixture; no iOS, standalone production APK, screen-reader, keyboard or font-scaling certification.",
+      "status": "passed",
+      "ciEvidence": "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427",
+      "exactCurrencyDisplay": "$9,007,199,254,740,993.01",
+      "minorUnitRoundtrip": "999999999999999999999999999999.99",
+      "dstInstant": "2026-11-01T06:30:00Z",
+      "screenshotsReviewed": [
+        "light",
+        "dark"
+      ],
+      "screenshots": [
+        {
+          "file": "glocon-native-light.png",
+          "sha256": "5d29f3c976d37ed675f03612fc1f7d931ce83733335ad6187e73c4ffc19cec68"
+        },
+        {
+          "file": "glocon-native-dark.png",
+          "sha256": "4f5ac2a6448755441ceb2b6360333343ce63f7c2a430b743c64a214b72ebb22b"
+        }
+      ]
+    },
+    "legacyIntlRegression": {
+      "cases": 567,
+      "locales": 9,
+      "currencies": 3,
+      "displayModes": 3,
+      "passed": true
+    },
+    "ci": {
+      "url": "https://github.com/lastlandofficial/globalconfig/actions/runs/37717548427",
+      "sourceCommit": "aae95b664cf86d4a153205a8c3dac3ad203d3e0a",
+      "jobs": 8,
+      "passed": 8,
+      "environment": "GitHub Actions Ubuntu"
+    }
+  }
+}

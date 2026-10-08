@@ -353,3 +353,126 @@ describe("government review evidence revisions", () => {
     expect(plan.tasks[0]!.verification).toBe("review-required");
   });
 });
+
+describe("financial acceptance coverage", () => {
+  it("requires invoice coverage by default and exact assertions in every ready case", async () => {
+    const { checkFinancialCases } = await import("../src/compliance");
+    const { config, order, details } = createComplianceExample("JP");
+    const expected = {
+      status: "ready" as const,
+      net: "2000",
+      tax: "200",
+      gross: "2200",
+    };
+    const quote = { name: "quote", order, expected };
+    const invoice = { name: "invoice", order, details, expected };
+    expect(checkFinancialCases(config, [quote]).exitCode).toBe(2);
+    expect(
+      checkFinancialCases(config, [quote], { scope: "quotes" }).exitCode,
+    ).toBe(0);
+    expect(checkFinancialCases(config, [invoice]).exitCode).toBe(0);
+    expect(
+      checkFinancialCases(config, [quote, invoice], { scope: "both" }).exitCode,
+    ).toBe(0);
+    expect(
+      checkFinancialCases(config, [
+        { ...invoice, expected: { status: "ready" } },
+      ]).exitCode,
+    ).toBe(2);
+    expect(
+      checkFinancialCases(config, [
+        { ...invoice, expected: { ...expected, tax: "201" } },
+      ]).exitCode,
+    ).toBe(1);
+    delete config.business.registrationId;
+    expect(
+      checkFinancialCases(config, [quote], { scope: "quotes" }).exitCode,
+    ).toBe(0);
+    expect(checkFinancialCases(config, [invoice]).exitCode).toBe(2);
+  });
+  it("negative cases alone cannot qualify as successful financial coverage", async () => {
+    const { checkFinancialCases } = await import("../src/compliance");
+    const { config, order } = createComplianceExample("JP");
+    order.scenario = "cross-border";
+    const cases = [
+      {
+        name: "unsupported",
+        order,
+        expected: { status: "unsupported", issueCodes: ["SUPPLY-UNSUPPORTED"] },
+      },
+    ];
+    const report = checkFinancialCases(config, cases, { scope: "quotes" });
+    expect(report.exitCode).toBe(2);
+    expect(report.coverage.negativeCases).toBe(1);
+    expect(() => checkFinancialCases(config, [...cases, ...cases])).toThrow(
+      "unique",
+    );
+  });
+});
+
+describe("shared India rounding policy", () => {
+  it("keeps aggregate previews, orders and invoice totals aligned for both policies and pricing modes", async () => {
+    const { calculateTax } = await import("../src/tax");
+    for (const indiaRounding of ["components", "combined"] as const) {
+      for (const pricing of ["exclusive", "inclusive"] as const) {
+        for (const rounding of [
+          "half-up",
+          "half-even",
+          "down",
+          "up",
+        ] as const) {
+          for (const unitPrice of ["0.01", "0.03", "0.06", "1.01", "1180.00"]) {
+            const { config, order, details } = createComplianceExample("IN");
+            config.indiaRounding = indiaRounding;
+            config.rounding = rounding;
+            config.products[0]!.unitPrice = unitPrice;
+            order.lines[0]!.quantity = 1;
+            order.pricing = pricing;
+            const options = {
+              country: "IN" as const,
+              amount: unitPrice,
+              rate: "18",
+              supply: "intra-state" as const,
+              indiaRounding,
+              rounding,
+              inclusive: pricing === "inclusive",
+            };
+            const result = calculateOrder(config, order);
+            if (result.status === "invalid") {
+              expect(() => calculateTax(options)).toThrow("negative net");
+              continue;
+            }
+            const aggregate = calculateTax(options);
+            const calculation = ready(result);
+            expect([
+              calculation.net,
+              calculation.tax,
+              calculation.gross,
+            ]).toEqual([aggregate.net, aggregate.tax, aggregate.gross]);
+            expect(
+              calculation.groups[0]!.components.map((c) => c.amount),
+            ).toEqual(aggregate.components.map((c) => c.amount));
+            expect(
+              ready(createInvoiceDraft(config, order, details)).calculation.tax,
+            ).toBe(aggregate.tax);
+          }
+        }
+      }
+    }
+  });
+  it("uses component rounding by default in both entry points", async () => {
+    const { calculateTax } = await import("../src/tax");
+    expect(
+      calculateTax({
+        country: "IN",
+        amount: "0.03",
+        rate: 18,
+        supply: "intra-state",
+      }).tax,
+    ).toBe("0.00");
+    const { config, order } = createComplianceExample("IN");
+    config.products[0]!.unitPrice = "0.03";
+    order.lines[0]!.quantity = 1;
+    expect(ready(calculateOrder(config, order)).tax).toBe("0.00");
+  });
+});

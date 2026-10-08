@@ -1,6 +1,6 @@
 {
   "name": "glocon",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "globalconfig: government-backed tax and invoice workflows, project UI checks, React components, and country utilities for JavaScript and TypeScript.",
   "license": "MIT",
   "type": "module",
@@ -8,7 +8,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "glocon": "./bin/glocon.mjs"
+    "glocon": "bin/glocon.mjs"
   },
   "exports": {
     ".": {
@@ -167,7 +167,8 @@
       }
     },
     "./compliance-config.schema.json": "./docs/compliance/config.schema.json",
-    "./order.schema.json": "./docs/compliance/order.schema.json"
+    "./order.schema.json": "./docs/compliance/order.schema.json",
+    "./financial-cases.schema.json": "./docs/compliance/financial-cases.schema.json"
   },
   "files": [
     "dist",
@@ -191,14 +192,21 @@
     "build": "node scripts/clean.mjs && tsup",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test test/*.test.mjs && vitest run",
-    "check": "npm run typecheck && npm test && node scripts/check-package.mjs",
+    "check": "npm run typecheck && npm test && node scripts/check-package.mjs && npm run check:bundles",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run check",
+    "prepublishOnly": "npm run check:all && npm run test:frameworks && npm audit --audit-level=moderate",
     "example": "npm run build && node examples/quickstart.mjs",
     "test:browser": "playwright test",
     "test:ui-package": "node scripts/ui-package-smoke.mjs",
     "check:all": "npm run check && npm run test:browser && npm run test:ui-package",
-    "test:frameworks": "npm run build && node scripts/check-frameworks.mjs"
+    "test:frameworks": "npm run build && node scripts/check-frameworks.mjs",
+    "format": "prettier --write src test tests scripts bin *.ts",
+    "format:check": "prettier --check src test tests scripts bin *.ts",
+    "check:distribution": "node scripts/check-distribution.mjs",
+    "check:bundles": "node scripts/check-bundles.mjs",
+    "test:browser:matrix": "node scripts/check-browser-matrix.mjs",
+    "test:electron": "npm run build && node scripts/check-electron.mjs",
+    "test:native:android": "npm run build && node scripts/check-native.mjs"
   },
   "repository": {
     "type": "git",
@@ -236,7 +244,6 @@
     "registry": "https://registry.npmjs.org/"
   },
   "dependencies": {
-    "@axe-core/playwright": "^4.10.2",
     "@js-temporal/polyfill": "^0.5.1",
     "@noble/hashes": "^1.8.0",
     "decimal.js": "^10.6.0"
@@ -252,7 +259,10 @@
     "react-dom": "^19.0.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.11",
+    "vite": "^6.4.2",
+    "prettier": "^3.6.2",
+    "@axe-core/playwright": "^4.10.2"
   },
   "overrides": {
     "tsup": {
@@ -261,13 +271,17 @@
   },
   "peerDependencies": {
     "playwright": ">=1.50.0 <2",
-    "react": ">=18.0.0 <20"
+    "react": ">=18.0.0 <20",
+    "@axe-core/playwright": ">=4.10.0 <5"
   },
   "peerDependenciesMeta": {
     "playwright": {
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "@axe-core/playwright": {
       "optional": true
     }
   }

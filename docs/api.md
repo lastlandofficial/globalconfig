@@ -25,6 +25,8 @@ All root exports are also available from the corresponding subpath. Invalid runt
 
 `ExchangeRates` is `{ base, rates, asOf, source }`. A base quote may be omitted; if supplied it must equal 1. All supplied quotes must be positive and supported. Cross rate = `targetQuote / sourceQuote`. Same-currency conversions use rate 1. Monetary input supports strings or numbers; use strings for exact values. Freshness boundaries are inclusive: an age equal to `maxAgeMs` passes.
 
+`formatCurrency` detects decimal-string support in `Intl`. Older implementations, including the tested Hermes runtime, retain exact string digits with locale grouping, decimal separators, signs and numeral systems from `formatToParts`. Numeric digits come from the rounded decimal string. `currencyDisplay: 'name'` on such a runtime is limited to safely representable amounts below 2^45, because name grammar may depend on the exact value. Larger names require compatible Intl or symbol/code display and throw instead of losing money precision. Modern Intl retains direct formatting. A 567-case regression matrix covers nine locales, three currencies, signs, bounds, grouping and numeral variants under simulated legacy coercion.
+
 ## Time API (`glocon/time`)
 
 | Export | Purpose |
@@ -47,7 +49,7 @@ Conversion results contain `instant`, `local`, `timeZone`, `offset`, `zoned`, an
 { country: 'JP', rate }
 ```
 
-`localTax` only applies to intra-state supplies. Result fields: `country`, `currency`, `net`, `tax`, `gross`, `rate`, `components`, and `profile`. Tax is rounded once at currency precision; inclusive prices preserve the input gross amount. Components sum exactly to tax; net plus tax equals gross. Negative amounts are rejected.
+`localTax` only applies to intra-state supplies. Result fields: `country`, `currency`, `net`, `tax`, `gross`, `rate`, `components`, and `profile`. Tax is rounded once per group at currency precision, except India intra-state `indiaRounding: "components"` (the default), which rounds each half separately and sums them. `indiaRounding: "combined"` preserves the pre-0.7 aggregate policy and allocates the final remainder to local tax. The compliance configuration accepts the same policy; match it across previews and invoices. Inclusive prices preserve the input gross amount. Impossible rounding that would make net negative is rejected. Components sum exactly to tax; net plus tax equals gross. Negative amounts are rejected.
 
 `createTaxManager(initialRules?)` exposes `register(rule)`, `list()`, `getRate(id, on)`, `calculate(options)`, and `progressive(options)`. Rules have unique IDs, source references, a country, a percentage rate, inclusive `effectiveFrom`, and optional exclusive `effectiveTo`. Dates must be valid `YYYY-MM-DD`. `getRate` rejects missing/out-of-period rules; it does not automatically apply a returned rule to a calculation.
 
@@ -108,3 +110,5 @@ Facts: `collectsPersonalData`, `servesChildrenUnder13`, `ccpaApplies`, `sellsTax
 Public types include `GlobalConfigOptions`, `GlobalConfig<CountryCode>`, `CountryTaxOptions<CountryCode>`, and `CountryCodeFor<string>`. Known unpadded literal codes and aliases are resolved for autocomplete; dynamically loaded country strings use the broader country union and runtime validation. The standalone `calculateTax` continues to require the discriminating country field.
 
 Country-bound time operations defer the missing-US-zone error until a zone is actually needed. This allows currency or tax clients to be used without an arbitrary US time-zone default.
+
+`toMinorUnits` and `fromMinorUnits` share a magnitude bound below 1e30 in major currency units. An encoding whose rounding carries to that bound is rejected. Every accepted encoded amount can be decoded at the same currency precision.

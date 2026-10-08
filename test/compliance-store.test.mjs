@@ -128,3 +128,94 @@ test(
     }
   },
 );
+
+test(
+  "fractional SQLite credits remain exact across retry, restart and competing connections",
+  { skip: !DatabaseSync },
+  async () => {
+    const dir = await mkdtemp(join(tmpdir(), "glocon-fractional-store-"));
+    const file = join(dir, "invoices.sqlite");
+    let db = new DatabaseSync(file);
+    try {
+      const { config, order, details } = createComplianceExample("JP");
+      config.billing = {
+        quantityPrecision: 6,
+        unitPricePrecision: 6,
+        lineRounding: "half-up",
+        review: config.business.review,
+      };
+      config.products[0].unitPrice = "50";
+      order.lines[0].quantity = "0.3";
+      const input = {
+        key: "metered-order",
+        config,
+        order,
+        details: { issuedOn: details.issuedOn },
+      };
+      const original = createSQLiteInvoiceStore(db).issue(input);
+      assert.equal(original.document.calculation.engine, "glocon-order-2");
+      assert.equal(original.document.calculation.gross, "17");
+      assert.deepEqual(createSQLiteInvoiceStore(db).issue(input), original);
+      const credit = {
+        business: config.business.id,
+        originalNumber: original.number,
+        request: {
+          date: order.date,
+          reason: "Reviewed fractional return",
+          review: config.business.review,
+          lines: [{ lineId: "item-1", quantity: "0.2" }],
+        },
+      };
+      const workerSource = `const {parentPort,workerData}=require('node:worker_threads');(async()=>{const {DatabaseSync}=await import('node:sqlite');const {createSQLiteInvoiceStore}=await import(workerData.module);const db=new DatabaseSync(workerData.file);try{parentPort.postMessage({ok:true,result:createSQLiteInvoiceStore(db).credit(workerData.input)});}catch(e){parentPort.postMessage({ok:false,message:e.message});}finally{db.close();}})();`;
+      const run = (key) =>
+        new Promise((resolve, reject) => {
+          const worker = new Worker(workerSource, {
+            eval: true,
+            workerData: {
+              file,
+              module: new URL("../dist/compliance/server.js", import.meta.url)
+                .href,
+              input: { ...credit, key },
+            },
+          });
+          worker.once("message", resolve);
+          worker.once("error", reject);
+        });
+      const results = await Promise.all([run("credit-a"), run("credit-b")]);
+      const completed = results.filter((r) => r.ok);
+      assert.equal(completed.length, 1);
+      assert.ok(results.some((r) => !r.ok && r.message.includes("remaining")));
+      const first = completed[0].result;
+      assert.equal(first.document.gross, "11");
+      db.close();
+      db = new DatabaseSync(file);
+      const store = createSQLiteInvoiceStore(db);
+      assert.deepEqual(
+        store.get(config.business.id, original.number),
+        original,
+      );
+      const finalRequest = {
+        ...credit,
+        key: "credit-final",
+        request: {
+          ...credit.request,
+          lines: [{ lineId: "item-1", quantity: "0.1" }],
+        },
+      };
+      const last = store.credit(finalRequest);
+      assert.equal(last.document.gross, "6");
+      assert.deepEqual(store.credit(finalRequest), last);
+      assert.equal(
+        BigInt(first.document.gross) + BigInt(last.document.gross),
+        BigInt(original.document.calculation.gross),
+      );
+      assert.throws(
+        () => store.credit({ ...finalRequest, key: "credit-extra" }),
+        /remaining/,
+      );
+    } finally {
+      db.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  },
+);

@@ -3,6 +3,7 @@ import { currencyDigits } from "../countries";
 import { calculateOrder, verifyCalculation } from "./engine";
 import { copy, digest, issue, requirements } from "./rules";
 import { array, keys, obj, review, text, unique } from "./validation";
+import { quantityUnits } from "./billing";
 import type {
   Calculation,
   ComplianceConfig,
@@ -285,18 +286,16 @@ export function createCreditNoteDraft(
     )
       throw Error("Credit date precedes invoice or credit review has expired.");
     array(request.lines, "Credit lines", 1);
+    const billing = original.calculation.snapshot.config.billing;
     const ids = new Set<string>();
     for (const l of request.lines) {
       obj(l);
       keys(l, ["lineId", "quantity"]);
       text(l.lineId, "Line ID");
-      if (
-        ids.has(l.lineId) ||
-        !Number.isSafeInteger(l.quantity) ||
-        l.quantity < 1
-      )
+      quantityUnits(l.quantity, billing);
+      if (ids.has(l.lineId))
         throw Error(
-          "Credit lines require unique IDs and positive integer quantities.",
+          "Credit lines require unique IDs and positive reviewed quantities.",
         );
       ids.add(l.lineId);
     }
@@ -308,7 +307,7 @@ export function createCreditNoteDraft(
       new D(v.toString()).div(scale).toFixed(digits);
     const used = new Map<
       string,
-      { quantity: number; net: bigint; tax: bigint }
+      { quantity: bigint; net: bigint; tax: bigint }
     >();
     const priorIds = new Set<string>();
     for (const [index, credit] of previous.entries()) {
@@ -334,9 +333,9 @@ export function createCreditNoteDraft(
         throw Error("Credit history does not replay.");
       priorIds.add(credit.digest);
       for (const line of credit.lines) {
-        const u = used.get(line.lineId) ?? { quantity: 0, net: 0n, tax: 0n };
+        const u = used.get(line.lineId) ?? { quantity: 0n, net: 0n, tax: 0n };
         used.set(line.lineId, {
-          quantity: u.quantity + line.quantity,
+          quantity: u.quantity + quantityUnits(line.quantity, billing),
           net: u.net + minor(line.net),
           tax: u.tax + minor(line.tax),
         });
@@ -375,7 +374,7 @@ function creditBody(
   original: InvoiceDraft,
   request: CreditRequest,
   previous: readonly CreditNoteDraft[],
-  used: Map<string, { quantity: number; net: bigint; tax: bigint }>,
+  used: Map<string, { quantity: bigint; net: bigint; tax: bigint }>,
   minor: (v: string) => bigint,
   amount: (v: bigint) => string,
 ) {
@@ -392,16 +391,25 @@ function creditBody(
   unique(request.lines.map((l) => ({ id: l.lineId })));
   const lines = request.lines.map((l) => {
     const source = original.calculation.lines.find((s) => s.id === l.lineId);
-    const u = used.get(l.lineId) ?? { quantity: 0, net: 0n, tax: 0n };
+    const u = used.get(l.lineId) ?? { quantity: 0n, net: 0n, tax: 0n };
+    const billedQuantity = quantityUnits(
+      l.quantity,
+      original.calculation.snapshot.config.billing,
+    );
     if (
       !source ||
-      !Number.isSafeInteger(l.quantity) ||
-      l.quantity < 1 ||
-      l.quantity + u.quantity > source.quantity
+      billedQuantity + u.quantity >
+        quantityUnits(
+          source.quantity,
+          original.calculation.snapshot.config.billing,
+        )
     )
       throw Error("Credit exceeds remaining invoice quantity.");
-    const numerator = BigInt(l.quantity + u.quantity),
-      denominator = BigInt(source.quantity);
+    const numerator = billedQuantity + u.quantity,
+      denominator = quantityUnits(
+        source.quantity,
+        original.calculation.snapshot.config.billing,
+      );
     const net = (minor(source.net) * numerator) / denominator - u.net,
       tax = (minor(source.tax) * numerator) / denominator - u.tax;
     if (net < 0n || tax < 0n)
@@ -450,5 +458,5 @@ export function renderInvoiceHTML(invoice: InvoiceDraft): string {
   const c = invoice.calculation,
     b = c.snapshot.config.business,
     o = c.snapshot.order;
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Invoice ${escape(invoice.details.number)}</title><style>body{font:16px/1.5 system-ui;max-width:960px;margin:32px auto;padding:0 20px;color:#111;background:#fff}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:8px;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media print{body{margin:0}}</style></head><body><main><h1>${b.environment === "test" ? "TEST " : ""}Invoice draft ${escape(invoice.details.number)}</h1><p>Issued: ${escape(invoice.details.issuedOn)} · Transaction: ${escape(o.date)} · ${escape(c.currency)}</p><h2>${escape(b.name)}</h2><pre>${escape(b.address)}</pre><p>Registration: ${escape(b.registrationId ?? "")}</p><h2>Bill / deliver to</h2><p>${escape(o.buyer.name)}</p><pre>${escape(o.buyer.address ?? "")}</pre><p>${escape(o.buyer.registrationId ?? "")} ${escape(o.buyer.stateCode ?? "")}</p><p>Place of supply: ${escape(o.placeOfSupply ?? o.jurisdiction)} · Reverse charge: no (ordinary domestic profile)</p><table><thead><tr><th>Item / classification</th><th>Quantity / unit</th><th>Unit price</th><th>Discount</th><th>Net</th><th>Rate</th></tr></thead><tbody>${c.lines.map((l) => `<tr><td>${escape(l.description)} / ${escape(l.classification)}</td><td>${l.quantity} ${escape(l.unit)}</td><td>${escape(l.unitPrice)}</td><td>${escape(l.discount)}</td><td>${escape(l.net)}</td><td>${escape(l.rate)}%${b.country === "JP" && l.rate === "8" ? " (reduced rate)" : ""}</td></tr>`).join("")}</tbody></table><h2>Tax by rate</h2>${c.groups.map((g) => `<p>${escape(g.rate)}% · ${escape(g.treatment)} · Net ${escape(g.net)} · Tax ${escape(g.tax)} · Gross ${escape(g.gross)}</p><ul>${g.components.map((p) => `<li>${escape(p.name)} ${escape(p.rate)}%: ${escape(p.amount)}</li>`).join("")}</ul>`).join("")}<p>Total net: ${escape(c.net)} · Total tax: ${escape(c.tax)}</p><h2>Total ${escape(c.gross)} ${escape(c.currency)}</h2><p>${escape(b.india?.declaration ?? "")}</p><p>Signature evidence: ${escape(invoice.details.signatureEvidence ?? "")}</p>${invoice.details.externalRegistration ? `<p>IRN: ${escape(invoice.details.externalRegistration.irn)}</p><p>Verified QR evidence is stored with the draft. Attach the actual signed QR when issuing the statutory document.</p>` : ""}<p>Draft for review. Not government registration or proof of legal compliance.</p></main></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Invoice ${escape(invoice.details.number)}</title><style>body{font:16px/1.5 system-ui;max-width:960px;margin:32px auto;padding:0 20px;color:#111;background:#fff}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid #ccc;padding:8px;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media print{body{margin:0}}</style></head><body><main><h1>${b.environment === "test" ? "TEST " : ""}Invoice draft ${escape(invoice.details.number)}</h1><p>Issued: ${escape(invoice.details.issuedOn)} · Transaction: ${escape(o.date)} · ${escape(c.currency)}</p><h2>${escape(b.name)}</h2><pre>${escape(b.address)}</pre><p>Registration: ${escape(b.registrationId ?? "")}</p><h2>Bill / deliver to</h2><p>${escape(o.buyer.name)}</p><pre>${escape(o.buyer.address ?? "")}</pre><p>${escape(o.buyer.registrationId ?? "")} ${escape(o.buyer.stateCode ?? "")}</p><p>Place of supply: ${escape(o.placeOfSupply ?? o.jurisdiction)} · Reverse charge: no (ordinary domestic profile)</p><table><thead><tr><th>Item / classification</th><th>Quantity / unit</th><th>Unit price</th><th>Discount</th><th>Net</th><th>Rate</th></tr></thead><tbody>${c.lines.map((l) => `<tr><td>${escape(l.description)} / ${escape(l.classification)}</td><td>${escape(l.quantity)} ${escape(l.unit)}</td><td>${escape(l.unitPrice)}</td><td>${escape(l.discount)}</td><td>${escape(l.net)}</td><td>${escape(l.rate)}%${b.country === "JP" && l.rate === "8" ? " (reduced rate)" : ""}</td></tr>`).join("")}</tbody></table><h2>Tax by rate</h2>${c.groups.map((g) => `<p>${escape(g.rate)}% · ${escape(g.treatment)} · Net ${escape(g.net)} · Tax ${escape(g.tax)} · Gross ${escape(g.gross)}</p><ul>${g.components.map((p) => `<li>${escape(p.name)} ${escape(p.rate)}%: ${escape(p.amount)}</li>`).join("")}</ul>`).join("")}<p>Total net: ${escape(c.net)} · Total tax: ${escape(c.tax)}</p><h2>Total ${escape(c.gross)} ${escape(c.currency)}</h2><p>${escape(b.india?.declaration ?? "")}</p><p>Signature evidence: ${escape(invoice.details.signatureEvidence ?? "")}</p>${invoice.details.externalRegistration ? `<p>IRN: ${escape(invoice.details.externalRegistration.irn)}</p><p>Verified QR evidence is stored with the draft. Attach the actual signed QR when issuing the statutory document.</p>` : ""}<p>Draft for review. Not government registration or proof of legal compliance.</p></main></body></html>`;
 }

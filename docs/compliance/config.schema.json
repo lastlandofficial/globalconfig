@@ -62,6 +62,45 @@
         "down",
         "up"
       ]
+    },
+    "indiaRounding": {
+      "enum": [
+        "components",
+        "combined"
+      ]
+    },
+    "billing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quantityPrecision",
+        "unitPricePrecision",
+        "lineRounding",
+        "review"
+      ],
+      "properties": {
+        "quantityPrecision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18
+        },
+        "unitPricePrecision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18
+        },
+        "lineRounding": {
+          "enum": [
+            "half-up",
+            "half-even",
+            "down",
+            "up"
+          ]
+        },
+        "review": {
+          "$ref": "#/$defs/review"
+        }
+      }
     }
   },
   "required": [
@@ -72,7 +111,7 @@
     "rounding"
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.6.0/docs/compliance/config.schema.json",
+  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.7.0/docs/compliance/config.schema.json",
   "title": "glocon compliance configuration",
   "$defs": {
     "review": {

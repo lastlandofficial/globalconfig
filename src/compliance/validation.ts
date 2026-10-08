@@ -1,6 +1,8 @@
 import { dateOnly, decimal, rounding } from "../internal";
 import { currencyDigits, getCountry } from "../countries";
 import type { ComplianceConfig, Order, Review, TreatmentRule } from "./types";
+import { quantityUnits } from "./billing";
+import type { BillingPolicy } from "./types";
 export function obj(v: unknown): asserts v is Record<string, unknown> {
   if (!v || typeof v !== "object" || Array.isArray(v))
     throw Error("Expected an object.");
@@ -35,7 +37,9 @@ export function money(value: unknown, digits: number, label: string) {
     throw Error(`${label} must be a decimal string.`);
   const n = decimal(value, label);
   if (n.isNegative() || n.decimalPlaces() > digits)
-    throw Error(`${label} must be nonnegative whole currency minor units.`);
+    throw Error(
+      `${label} must be nonnegative and have at most ${digits} decimal places.`,
+    );
   return n;
 }
 export function review(value: unknown): asserts value is Review {
@@ -57,6 +61,8 @@ export function validateComplianceConfig(input: unknown): ComplianceConfig {
     "products",
     "rules",
     "rounding",
+    "indiaRounding",
+    "billing",
   ]);
   if (input.version !== 1)
     throw Error("Compliance configuration version must be 1.");
@@ -111,14 +117,45 @@ export function validateComplianceConfig(input: unknown): ComplianceConfig {
   rounding(input.rounding as never);
   if (input.rounding === undefined)
     throw Error("Choose an explicit rounding mode.");
+  if (input.indiaRounding !== undefined) {
+    if (b.country !== "IN")
+      throw Error("indiaRounding requires an India business.");
+    choice(input.indiaRounding, ["components", "combined"], "indiaRounding");
+  }
   const digits = currencyDigits(getCountry(String(b.country)).currency);
+  if (input.billing !== undefined) {
+    obj(input.billing);
+    keys(input.billing, [
+      "quantityPrecision",
+      "unitPricePrecision",
+      "lineRounding",
+      "review",
+    ]);
+    for (const field of ["quantityPrecision", "unitPricePrecision"]) {
+      const precision = input.billing[field];
+      if (
+        !Number.isInteger(precision) ||
+        Number(precision) < 0 ||
+        Number(precision) > 18
+      )
+        throw Error(`${field} must be an integer from 0 to 18.`);
+    }
+    choice(
+      input.billing.lineRounding,
+      ["half-up", "half-even", "down", "up"],
+      "lineRounding",
+    );
+    review(input.billing.review);
+  }
+  const pricePrecision =
+    (input.billing as BillingPolicy | undefined)?.unitPricePrecision ?? digits;
   array(input.products, "Products", 1);
   for (const p of input.products) {
     obj(p);
     keys(p, ["id", "description", "unitPrice", "classification", "unit"]);
     text(p.id, "Product ID");
     text(p.description, "Description");
-    money(p.unitPrice, digits, "unitPrice");
+    money(p.unitPrice, pricePrecision, "unitPrice");
     for (const k of ["classification", "unit"])
       if (p[k] !== undefined) text(p[k], k);
   }
@@ -161,7 +198,11 @@ export function validateComplianceConfig(input: unknown): ComplianceConfig {
   return input as unknown as ComplianceConfig;
 }
 export const defineComplianceConfig = validateComplianceConfig;
-export function validateOrder(input: unknown, digits: number): Order {
+export function validateOrder(
+  input: unknown,
+  digits: number,
+  billing?: BillingPolicy,
+): Order {
   obj(input);
   keys(input, [
     "id",
@@ -209,12 +250,7 @@ export function validateOrder(input: unknown, digits: number): Order {
     keys(line, ["id", "productId", "quantity", "discount"]);
     text(line.id, "Line ID");
     text(line.productId, "Product ID");
-    if (
-      !Number.isSafeInteger(line.quantity) ||
-      Number(line.quantity) < 1 ||
-      Number(line.quantity) > 1000000
-    )
-      throw Error("Quantity must be an integer from 1 to 1000000.");
+    quantityUnits(line.quantity, billing);
     if (line.discount !== undefined)
       money(line.discount, digits, "Line discount");
   }

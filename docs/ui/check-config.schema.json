@@ -234,6 +234,12 @@
               }
             }
           }
+        },
+        "coveragePolicy": {
+          "enum": [
+            "complete",
+            "allow-truncated"
+          ]
         }
       }
     },

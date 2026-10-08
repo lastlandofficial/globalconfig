@@ -1,6 +1,6 @@
 # Tax and invoice workflows
 
-Available in glocon 0.6.0. Configure reviewed business and product decisions once, calculate orders, validate invoice drafts, and check regression cases in CI. The package includes selected India GST and Japan qualified-invoice checks plus a California rate-decision reference. A ready result means the configured calculation or selected checks passed, not that every applicable law has been satisfied.
+Introduced in glocon 0.6.0; this guide describes 0.7.0 (release candidate). Configure reviewed business and product decisions once, calculate orders, validate invoice drafts, and check regression cases in CI. The package includes selected India GST and Japan qualified-invoice checks plus a California rate-decision reference. A ready result means the configured calculation or selected checks passed, not that every applicable law has been satisfied.
 
 ## Try a complete example
 
@@ -84,13 +84,13 @@ Results are `ready`, `needs-context`, `unsupported`, or `invalid`. Consumers mus
 
 ## Calculation behavior
 
-- Money and rates are decimal strings. Quantities are positive whole numbers up to 1,000,000; fractional quantity/unit-price handling is outside this initial engine.
+- Money and rates are decimal strings. Without a billing policy, quantities remain positive whole numbers up to 1,000,000 and catalog prices use currency precision. A reviewed `billing` policy enables exact decimal-string quantities and prices up to 18 decimal places.
 - Prices come from the catalog. Order lines reference product IDs and provide quantity and optional fixed-amount discounts; they cannot override prices.
 - Line discounts apply first, then an order discount is allocated proportionally to the remaining line charges using integer minor units and largest remainders. Input order breaks remainder ties.
 - Inclusive discounts reduce inclusive charges; exclusive discounts reduce net charges. The business must review whether that discount treatment is appropriate. Conditional/rebate rules are not inferred.
 - Rate groups remain separate by treatment and rate. Taxable rates must be positive; zero-rated, exempt, and out-of-scope treatments need zero rates and reasons.
 - Japan groups the invoice basis by rate, rounds each group's tax once, then allocates the result to lines for accounting. Allocated line tax is not an independently rounded line-tax calculation.
-- India intra-state calculations round CGST and SGST/UTGST separately at their half-rates and sum them. Inter-state calculations use IGST. This is a documented calculation policy for reviewed inputs, not a decision about supply classification or statutory return rounding.
+- India intra-state calculations default to `indiaRounding: "components"`: round CGST and SGST/UTGST separately at their half-rates and sum them. The optional `"combined"` policy rounds the combined tax first and allocates its remainder to local tax. `calculateTax` uses the same default and optional policy. Store the business-reviewed selection in the compliance config and use the same selection for previews. Inter-state calculations use IGST. This is a documented calculation policy for reviewed inputs, not a decision about supply classification or statutory return rounding.
 - California uses an explicitly reviewed combined rate and jurisdiction. The business chooses the supported rounding mode (`half-up`, `half-even`, `down`, `up`). No nationwide rate lookup is supplied.
 - All net, tax, gross, component, discount, and allocation totals reconcile. An impossible rounding/amount combination returns `invalid`.
 
@@ -172,3 +172,30 @@ Run `npx glocon compliance check --json` in CI. It writes `.glocon/compliance-re
 The `glocon/laws` API adds optional `reviewAfter` and `revision` on custom rules, and records the rule revision with new control assertions. Imported unversioned or outdated records retain their original status but receive `recordReviewRequired` and `verification: 'review-required'` in assessments/plans. `plan.evidence` distinguishes current-revision records, reviews needed, and absent records. These remain assertions, not proof that application behavior was inspected.
 
 Existing `plan.progress` counts keep their original meaning for backward compatibility. Rules without `reviewAfter` keep the conservative legacy source-date behavior. Add a documented review deadline to custom rules to avoid treating every new day as a detected source change.
+
+## Exact financial CI acceptance
+
+`glocon compliance check` defaults to `--scope invoices`. At least one ready invoice fixture must include independently reviewed expected `net`, `tax`, and `gross` strings. Every ready fixture requires all three totals. Expected rejection fixtures require specific `issueCodes`. A quotes-only project must explicitly select `--scope quotes`; `--scope both` requires successful exact quote and invoice coverage. Negative cases alone do not establish successful calculation or invoice coverage. Reports include the selected scope, ready cases, exact assertions, actual totals and coverage gaps. Exit codes are 0 for passing complete coverage, 1 for observed regressions, and 2 for incomplete coverage or unresolved required context.
+
+The portable `checkFinancialCases(config, cases, { scope })` API applies the same acceptance rules. The published `glocon/financial-cases.schema.json` describes the fixture format. Without a billing policy, whole quantities and currency-precision catalog prices remain the default boundaries. The reviewed precision workflow below extends both boundaries.
+
+## Metered and fractional billing
+
+Opt in using a policy reviewed for the transaction date:
+
+```ts
+config.billing = {
+  quantityPrecision: 6,
+  unitPricePrecision: 6,
+  lineRounding: 'half-even',
+  review: { by: 'Business reviewer', on: '2026-10-08', after: '2027-01-01', reference: 'Reviewed billing decision reference' },
+};
+config.products[0].unitPrice = '0.335';
+order.lines[0].quantity = '1.5';
+```
+
+Fractional quantities must be plain decimal strings; floating-point quantities such as `0.1` are rejected. Both precision limits are integers from 0 to 18. Quantity must be positive and no greater than 1,000,000. Extend each trusted catalog price by its exact quantity, subtract the fixed line discount, then round that line charge to currency precision using `lineRounding`. Apply the order discount after this step, and use the existing tax rounding policy for each rate group. Money discounts and final amounts remain whole currency minor units. Sub-minor charges may round to zero according to the reviewed policy. Metered extended amounts and final totals must remain below 1e30.
+
+Metered calculations and their locks use `glocon-order-2`; the snapshot records the complete billing policy. Existing integer calculations retain `glocon-order-1` and replay unchanged. Credit requests use the original precision policy and exact integer quantity units; cumulative partial credits collect all remaining minor units at full quantity without floating-point drift. SQLite stores decimal quantities as part of the original JSON document and checks complete credit history inside its existing transaction. Eligibility and external issuance remain reviewed business steps.
+
+Try the fictional metered fixture with `glocon compliance init --country JP --demo --metered`, then `glocon compliance check`. `createMeteredComplianceExample(country)` exposes the same example and independently specified expected totals. Production setup requires your reviewed input configuration.

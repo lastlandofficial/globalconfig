@@ -219,3 +219,11 @@ npm pack
 `npm run check:all` type-checks, runs unit tests, builds every export, and runs real Chromium tests. Browser tests use a local fixture server. `node scripts/fixture-server.mjs` serves the component workbench at `http://127.0.0.1:4179/react`.
 
 New rules should include a clear rationale, concrete evidence, meaningful broken and passing examples, intentional exceptions, and honest confidence. Read [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Complete collection and destinations (0.7.0)
+
+A scan that hits `maxElements` exits 2 by default, even with `--fail-on none`. Increase the cap to inspect the full page. `--allow-truncated` explicitly accepts partial collection and leaves `coverage.complete: false` in the report; project config uses `audit.coveragePolicy: "allow-truncated"`. Partial runs cannot produce a baseline or resolve absent baseline findings.
+
+The standalone CLI verifies the final URL before and after the scan. Unexpected login or other redirects exit 2. Legitimate redirects require `--expected-url <absolute-url>` (or `expectedURL` in the standalone config). Origin, path, query and fragment are checked; a trailing slash is tolerated. Sensitive requested destinations are not printed in the mismatch error. Use authenticated project checks or your existing Playwright context for protected content.
+
+`@axe-core/playwright` is an optional peer. UI setup installs it alongside Playwright; utility/core consumers do not install accessibility tooling. Programmatic accessibility checks fail with an actionable message if the peer is absent. `accessibility: false` runs custom checks alone.
