@@ -442,7 +442,7 @@
     "recordedOn": "2026-10-08",
     "status": "implemented-validated-locally-external-gates-pending",
     "validation": {
-      "status": "passed-current-core-browser-packaging-and-docs",
+      "status": "historical-initial-audit-validation-before-review-followup",
       "finalCounts": {
         "node": 106,
         "unit": 109,
@@ -458,12 +458,12 @@
       "targetedFinancial": {
         "status": "passed",
         "tests": 36,
-        "scope": "Financial agent source-targeted suite; final built-artifact/legacy compatibility checks remain pending."
+        "scope": "Financial agent source-targeted suite; full built-artifact and historical replay verification was subsequently recorded for the initial audit candidate."
       },
       "targetedInvoiceStore": {
         "status": "passed",
         "tests": 34,
-        "scope": "Invoice/credit/store agent source-targeted suite; final repository checks remain pending."
+        "scope": "Invoice/credit/store agent source-targeted suite; full repository verification was subsequently recorded for the initial audit candidate."
       },
       "command": "npm run check:all",
       "dependencies": {
@@ -474,7 +474,9 @@
       "releaseEvidence": "glocon-0.7.0.release.json",
       "releaseEvidenceScope": "The generated release manifest records exact source/archive hashes and only the additional framework, minimum-runtime and extended checks actually executed by release:verify. Consult its task statuses; this record does not assert external publication or CI execution.",
       "additionalNodeVerification": "node --test test/*.test.mjs passed all 106 tests after adding five launcher-only recovery guards. Final release:verify repeats the full current suite against the source/archive hash.",
-      "platformRegressionFixtures": "Extreme-depth DOM visibility follows each browser rendered geometry, with a separate mandatory visible 30-level case. Android startup recovery handles only the observed Pixel Launcher system dialog, with bounded attempts and recorded events; application ANRs still fail."
+      "platformRegressionFixtures": "Extreme-depth DOM visibility follows each browser rendered geometry, with a separate mandatory visible 30-level case. Android startup recovery handles only the observed Pixel Launcher system dialog, with bounded attempts and recorded events; application ANRs still fail.",
+      "recordedSourceCommit": "a7a9b1fc3d22cfcf644af0f50e5e6810a7472260",
+      "recordScope": "These counts describe the initial audit implementation before the follow-up below. Consult the generated release manifest for current source/archive-bound full execution and CI evidence."
     },
     "improvements": [
       {
@@ -772,6 +774,100 @@
         "status": "pending-execution-for-this-source",
         "remaining": "Current Android, other operating systems, standalone production apps and assistive-technology/application-specific checks need their own evidence; earlier fixture records remain historical."
       }
+    ]
+  },
+  "followupAudit": {
+    "recordedOn": "2026-10-08",
+    "basedOnCommit": "a7a9b1fc3d22cfcf644af0f50e5e6810a7472260",
+    "status": "implemented-targeted-validated",
+    "scope": "Close the new PR review findings for case deadlines, publication permissions, Markdown anchors and setup prerequisites.",
+    "improvements": [
+      {
+        "id": "remaining-case-deadline",
+        "change": "Create one case deadline before context allocation; navigation, authentication, destination and readiness waits, every scenario step, auditing, screenshots and completion use its remaining time. Close the owned context at expiry and continue later cases.",
+        "evidence": [
+          "src/check/runner.ts",
+          "src/check/scenarios.ts",
+          "tests/check.spec.ts",
+          "tests/scenarios.spec.ts"
+        ]
+      },
+      {
+        "id": "isolated-publishing-permissions",
+        "change": "Run CI and candidate verification without OIDC permission; upload the verified candidate and hashed logs. Only the minimal protected job can publish, after checking the same-run artifact by upload ID. Fresh public installation runs in a separate job without publishing permission.",
+        "evidence": [
+          ".github/workflows/publish.yml",
+          "scripts/check-release-artifact.mjs",
+          "docs/publishing.md"
+        ]
+      },
+      {
+        "id": "same-document-anchor-validation",
+        "change": "Resolve an empty pathname after query normalization to the current Markdown file, so fragment-only and query-plus-fragment links receive heading validation.",
+        "evidence": [
+          "scripts/check-docs.mjs"
+        ]
+      },
+      {
+        "id": "section-local-install-prerequisite",
+        "change": "Repeat the candidate-install and version-check prerequisite immediately before the optional init/plan commands; retain the existing installed CLI invocation.",
+        "evidence": [
+          "docs/getting-started.md"
+        ]
+      },
+      {
+        "id": "release-duration-formats",
+        "change": "Parse Playwright test counts for millisecond, second, minute and hour summaries in both release verification and transferred-artifact validation.",
+        "evidence": [
+          "scripts/verify-release.mjs",
+          "scripts/check-release-artifact.mjs"
+        ]
+      }
+    ],
+    "validation": {
+      "scope": "Actual targeted checks; full execution and current CI counts are recorded separately by the generated release manifest.",
+      "browserRegressions": {
+        "status": "passed",
+        "tests": 2,
+        "behaviors": [
+          "Delayed navigation and readiness exhaust one case budget",
+          "Navigation and successive scenario steps cannot execute a late action",
+          "Pending requests close and the next isolated case completes"
+        ]
+      },
+      "scenarioUnit": {
+        "status": "passed",
+        "tests": 2
+      },
+      "typecheck": {
+        "status": "passed",
+        "command": "npx tsc --noEmit"
+      },
+      "documentation": {
+        "status": "passed",
+        "markdownFiles": 21,
+        "localLinks": 69,
+        "compiledSchemas": 5,
+        "acceptedLinkFixtures": 9,
+        "rejectedMissingAnchorFixtures": 2
+      },
+      "artifactChecker": {
+        "status": "passed",
+        "acceptedCandidateAndDurationFixtures": 5,
+        "rejectedTamperedFixtures": 24,
+        "scope": "Preserved actual candidate, timing formats, changed archives/manifests/logs/counts, missing required checks, path escapes and symlinks."
+      },
+      "workflow": {
+        "status": "passed-static-validation",
+        "command": "/tmp/glocon-actionlint/actionlint",
+        "scope": "Actionlint and independent permission/job-isolation review; no authorized npm publication was executed."
+      },
+      "currentFullExecutionEvidence": "glocon-0.7.0.release.json",
+      "currentFullExecutionNote": "release:verify binds full checks and logs to the final source/archive pair. Its task statuses and attached current CI evidence determine full verification; targeted counts above are not a replacement."
+    },
+    "externalGates": [
+      "Authorized npm publication and public default-install integrity verification",
+      "Independent real-application UI and financial trials"
     ]
   }
 }

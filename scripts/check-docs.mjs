@@ -72,10 +72,10 @@ for (const file of markdown) {
     links++;
     try {
       const [location, fragment] = destination.split("#", 2);
-      const target = resolve(
-        dirname(join(root, file)),
-        decodeURIComponent(location.split("?", 1)[0]),
-      );
+      const pathname = decodeURIComponent(location.split("?", 1)[0]);
+      const target = pathname
+        ? resolve(dirname(join(root, file)), pathname)
+        : resolve(root, file);
       await access(target);
       if (fragment && extname(target) === ".md") {
         const targetText =

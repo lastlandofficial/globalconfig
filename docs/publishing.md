@@ -12,11 +12,15 @@ Keep release URLs versioned and immutable. Do not replace `v0.1.0` assets with d
 
 ## Publish through the reviewed CI workflow
 
-The repository prepares `.github/workflows/publish.yml` for an explicit workflow dispatch. It calls the full CI workflow, then runs the publishing job in the protected `npm-release` environment with npm provenance. The publishing job re-verifies the candidate and publishes the exact tested archive with lifecycle scripts disabled; it then verifies public distribution against that candidate. Preparing this workflow does not configure either account or publish a package.
+The repository prepares `.github/workflows/publish.yml` for an explicit dispatch on `main`. After the full CI workflow passes, a verification job installs dependencies, runs the release checks, and uploads the tested archive, manifest and hashed verification logs. This job has no OIDC publishing permission. Its failure logs are also retained as a separate artifact.
+
+The protected `npm-release` job downloads that exact artifact by its upload ID. A checker using Node builtins verifies the workflow commit, reviewed package version, required passing tasks, log hashes, positive test counts, archive byte length, SHA256 and sha512 integrity. This job runs no dependency installation, builds, tests or package consumer code. It publishes those checked bytes with `--ignore-scripts`. A separate job without OIDC permission then verifies registry integrity and executes the fresh public-install checks. Preparing this workflow does not configure either account or publish a package.
+
+Release jobs disable setup-node package-manager caching explicitly. The publishing job uses the npm bundled with Node 24 and checks it meets npm's documented minimum of 11.5.1; it does not install npm under publishing permission. The [official npm instructions](https://docs.npmjs.com/trusted-publishers/) require Node 22.14.0 or later and describe automatic provenance for eligible public GitHub publications. See the [setup-node cache controls](https://github.com/actions/setup-node#caching-global-packages-data).
 
 An npm package owner must configure its trusted publisher for GitHub owner `lastlandofficial`, repository `globalconfig`, workflow `publish.yml` and environment `npm-release`. Follow the [official npm trusted-publisher instructions](https://docs.npmjs.com/trusted-publishers/) and explicitly allow direct publication when configuring the publisher; a staging-only configuration does not authorize this workflow's direct publish step. Configure the matching GitHub environment protection rules before dispatching. npm also requires a newly configured trusted publisher's first successful publication within its documented activation window; check the current account guidance when enabling it.
 
-Dispatch against the reviewed source and intended package version only after the account configuration is complete. CI failures stop publication. The public install/integrity check remains the release-delivery gate after publishing; neither the workflow file nor an earlier local manifest is proof of a delivered release.
+Dispatch against the reviewed source and intended package version only after the account configuration is complete. CI, artifact verification and supported-npm checks stop publication when they fail. The public install/integrity check remains the release-delivery gate after publishing; neither the workflow file nor an earlier local manifest is proof of a delivered release.
 
 ## Publish locally to the npm registry
 

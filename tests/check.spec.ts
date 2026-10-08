@@ -105,6 +105,55 @@ async function runningFixture(handle: RequestListener) {
 }
 const readyHTML = (script = "", body = "<h1>Application</h1>") =>
   `<!doctype html><html lang="en"><head><title>Application</title><meta name="viewport" content="width=device-width"><style>body{margin:20px;font:16px system-ui;color:#111;background:#fff}</style></head><body><main>${body}</main><script>${script}</script></body></html>`;
+test("navigation and readiness share a case deadline, close pending requests, and leave the next case runnable", async () => {
+  let navigationCompleted = false;
+  let readinessReached = false;
+  let pending = 0;
+  const fixture = await runningFixture((req, res) => {
+    if (req.url === "/pending-request") {
+      pending++;
+      res.once("close", () => pending--);
+      return;
+    }
+    if (req.url === "/ready-reached") {
+      readinessReached = true;
+      res.end("ready");
+      return;
+    }
+    res.setHeader("content-type", "text/html");
+    if (req.url === "/slow") {
+      setTimeout(() => {
+        navigationCompleted = true;
+        res.end(
+          readyHTML(
+            `fetch('/pending-request').catch(() => {}); setTimeout(() => { const marker = document.createElement('p'); marker.id = 'ready'; marker.textContent = 'Ready'; document.querySelector('main').append(marker); fetch('/ready-reached').catch(() => {}); }, 2000);`,
+          ),
+        );
+      }, 1000);
+      return;
+    }
+    res.end(readyHTML());
+  });
+  fixture.config.audit = { accessibility: false, timeout: 2500 };
+  fixture.config.concurrency = 1;
+  fixture.config.pages = [{ path: "/slow", readySelector: "#ready" }, "/fast"];
+  try {
+    const report = await runChecks(fixture.config, { dir: fixture.dir });
+    expect(navigationCompleted).toBe(true);
+    expect(report.exitCode).toBe(2);
+    expect(report.cases.map((result) => result.status)).toEqual([
+      "error",
+      "completed",
+    ]);
+    expect(report.cases[0]!.message).toMatch(/time|deadline/i);
+    expect(report.cases[0]!.report).toBeUndefined();
+    expect(readinessReached).toBe(false);
+    await expect.poll(() => pending).toBe(0);
+    expect((await fetch(fixture.config.baseURL)).ok).toBe(true);
+  } finally {
+    await fixture.close();
+  }
+});
 test("installed-command flow starts/stops the app, aggregates screens, highlights findings and baselines regressions", async ({
   page,
 }) => {

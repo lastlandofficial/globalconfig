@@ -34,6 +34,8 @@ Rates and jurisdictions above are example inputs. Confirm classifications and ap
 
 ## Optional project setup command
 
+Run these commands from the app where you [installed the 0.7.0 candidate archive](../README.md#install), after confirming `npx --no-install glocon --version` reports `0.7.0`. The commands below use that installed CLI.
+
 ```sh
 npx --no-install glocon init
 npx --no-install glocon plan

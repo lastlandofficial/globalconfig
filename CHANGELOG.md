@@ -6,10 +6,11 @@
 - Enforce review applicability periods, optional retrospective review applicability, actual invoice/credit review occurrence dates, exact supported Japan treatments and consistent computed money bounds. Bound numeric/text inputs before parsing.
 - Write compact version-2 credit predecessor metadata, preserve mixed historical credit replay, and index SQLite credit history without rewriting retained documents.
 - Validate source baselines, require complete supported documents, retain effective destinations, and bound source retrieval with global/per-host scheduling, deadlines and cancellation.
-- Preserve explicit page/scenario destinations, run project cases with bounded concurrency, share case/run deadlines and expose progress while keeping JSON stdout machine-readable. Protect project artifacts and app lifecycle with an exclusive run lock.
+- Preserve explicit page/scenario destinations, run project cases with bounded concurrency and expose progress while keeping JSON stdout machine-readable. Navigation, authentication, every scenario step, readiness, auditing and screenshots consume one remaining case deadline; the run deadline also bounds startup. Protect project artifacts and app lifecycle with an exclusive run lock.
 - Retain passing, failing and manual-review rule outcomes for conservative baseline resolution; validate public report options and hash complete Unicode targets while preserving ASCII/BMP fingerprints.
 - Correct exact cross-rate rounding and time-zone alias validation, require both standalone audit peers, and provide explicit CI report/screenshot artifact opt-ins.
 - Align onboarding and API contracts, distinguish historical validation, and prepare separate independent UI/financial trials with predeclared criteria; trial outcomes remain pending.
+- Isolate candidate verification from OIDC publication, verify transferred archive and log hashes before publishing, and check public installation in a separate job without publishing permission. Validate same-page documentation anchors and repeat the candidate-install prerequisite beside setup commands.
 
 - Add reviewed metered billing: decimal-string quantities, higher-precision catalog prices, independent line rounding, versioned snapshots, exact cumulative fractional credits and transactional SQLite limits.
 - Verify a packaged Linux Electron application and add explicit same-origin accessibility analysis for contexts that cannot open axe's standard aggregation target.

@@ -13,6 +13,7 @@ import { resolve, dirname } from "node:path";
 import { createInterface } from "node:readline/promises";
 import type { Browser, BrowserContext, Page } from "playwright";
 import { auditPage } from "../ui/playwright/index";
+import { createDeadline } from "../ui/playwright/deadline";
 import { ensureServer, runCommand } from "./process";
 import { resolvePlaywright } from "./setup";
 import { pageURL, validateCheckConfig, type CheckConfig } from "./config";
@@ -72,7 +73,12 @@ function signalScope(external?: AbortSignal, timeout?: number) {
     },
   };
 }
-async function capture(page: Page, targets: string[], file: string) {
+async function capture(
+  page: Page,
+  targets: string[],
+  file: string,
+  remaining: (phase: string) => number,
+) {
   await page.evaluate((selectors) => {
     for (const target of selectors) {
       let selector = target;
@@ -109,7 +115,7 @@ async function capture(page: Page, targets: string[], file: string) {
   try {
     await page.screenshot({
       path: file,
-      timeout: 10000,
+      timeout: remaining("screenshot"),
       animations: "disabled",
       mask: [page.locator('input, textarea, [contenteditable="true"]')],
     });
@@ -124,7 +130,7 @@ async function capture(page: Page, targets: string[], file: string) {
   }
 }
 async function timed<T>(
-  task: Promise<T>,
+  task: () => Promise<T>,
   ms: number,
   signal: AbortSignal,
   cancel: () => Promise<unknown>,
@@ -133,7 +139,7 @@ async function timed<T>(
   let abort = () => {};
   try {
     return await Promise.race([
-      task,
+      Promise.resolve().then(task),
       new Promise<never>((_, reject) => {
         const fail = (error: Error) => {
           reject(error);
@@ -348,6 +354,7 @@ export async function runChecks(
           return;
         }
         const timeout = config.audit?.timeout ?? 30000;
+        const deadline = createDeadline(timeout, "Page check");
         let context: BrowserContext | undefined;
         let cancelled = false;
         const check = async () => {
@@ -365,6 +372,7 @@ export async function runChecks(
             await context.close();
             throw new Error("Run interrupted.");
           }
+          deadline.remaining("context creation");
           if (scenario)
             result.mocks = await installMocks(
               context,
@@ -372,7 +380,7 @@ export async function runChecks(
               config.baseURL,
             );
           const page = await context.newPage();
-          page.setDefaultTimeout(timeout);
+          page.setDefaultTimeout(deadline.remaining("page creation"));
           const requested = pageURL(entry.path, config.baseURL);
           const initial = expectedDestination(
             entry.expectedURL ?? requested.href,
@@ -383,12 +391,14 @@ export async function runChecks(
             config.baseURL,
           );
           const verifyDestination = (expected: URL) => {
+            deadline.remaining("destination verification");
             if (!sameDestination(new URL(page.url()), expected))
               throw new Error(
                 "Page reached an unexpected destination. Configure page.expectedURL for reviewed redirects or scenario.expectedURL for reviewed navigation; include its query and fragment.",
               );
           };
           const verifyAuth = async () => {
+            deadline.remaining("authentication");
             if (!entry.auth || !config.auth) return;
             const loginPath = pageURL(
               config.auth.loginPath ?? "/login",
@@ -402,11 +412,13 @@ export async function runChecks(
                 "Redirected to login. Refresh the test session.",
               );
             try {
-              await page
-                .locator(config.auth.readySelector)
-                .waitFor({ state: "visible", timeout });
+              await page.locator(config.auth.readySelector).waitFor({
+                state: "visible",
+                timeout: deadline.remaining("authentication"),
+              });
             } catch {
               if (scope.signal.aborted) throw scope.signal.reason;
+              deadline.remaining("authentication");
               throw new AuthRequired(
                 "The authenticated-page marker was not visible. Refresh the session or check auth.readySelector.",
               );
@@ -414,7 +426,7 @@ export async function runChecks(
           };
           const response = await page.goto(requested.href, {
             waitUntil: "domcontentloaded",
-            timeout,
+            timeout: deadline.remaining("navigation"),
           });
           if (
             entry.auth &&
@@ -429,10 +441,17 @@ export async function runChecks(
           if (entry.expectedURL)
             await page.waitForURL((url) => sameDestination(url, initial), {
               waitUntil: "domcontentloaded",
-              timeout,
+              timeout: deadline.remaining("initial destination"),
             });
           verifyDestination(initial);
-          if (scenario) await runSteps(page, scenario, result.steps!, timeout);
+          if (scenario)
+            await runSteps(
+              page,
+              scenario,
+              result.steps!,
+              timeout,
+              deadline.remaining,
+            );
           if (new URL(page.url()).origin !== requested.origin)
             throw new Error("Scenario left the configured app origin.");
           const readySelector =
@@ -440,19 +459,21 @@ export async function runChecks(
             entry.readySelector ??
             config.audit?.readySelector;
           if (readySelector)
-            await page
-              .locator(readySelector)
-              .waitFor({ state: "visible", timeout });
+            await page.locator(readySelector).waitFor({
+              state: "visible",
+              timeout: deadline.remaining("readiness selector"),
+            });
           if (scenario?.expectedURL)
             await page.waitForURL((url) => sameDestination(url, final), {
               waitUntil: "domcontentloaded",
-              timeout,
+              timeout: deadline.remaining("final destination"),
             });
           await verifyAuth();
           verifyDestination(final);
           const report = await auditPage(page, {
             ...config.audit,
             ...(readySelector ? { readySelector } : {}),
+            timeout: deadline.remaining("page audit"),
           });
           await verifyAuth();
           verifyDestination(final);
@@ -471,6 +492,7 @@ export async function runChecks(
                 page,
                 report.findings.map((f) => f.target),
                 resolve(output, filename),
+                deadline.remaining,
               );
               result.screenshot = filename;
             } catch {
@@ -484,12 +506,13 @@ export async function runChecks(
           }
           verifyDestination(final);
           scope.signal.throwIfAborted();
+          deadline.remaining("case completion");
           return report;
         };
         try {
           result.report = await timed(
-            check(),
-            timeout * (3 + (scenario?.steps.length ?? 0)) + 10000,
+            check,
+            deadline.remaining("case"),
             scope.signal,
             async () => {
               cancelled = true;

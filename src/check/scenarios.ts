@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from "playwright";
 import { expectedDestination } from "./destination";
+import { createDeadline } from "../ui/playwright/deadline";
 
 export type CheckStep =
   | { action: "click"; selector: string }
@@ -288,18 +289,27 @@ export async function runSteps(
   scenario: CheckScenario,
   results: StepResult[],
   timeout: number,
+  remaining = createDeadline(timeout, "Scenario").remaining,
 ) {
   for (const [index, step] of scenario.steps.entries()) {
     try {
-      if (step.action === "expect") await assertStep(page, step, timeout);
+      const stepTimeout = remaining(`scenario step ${index + 1}`);
+      if (step.action === "expect") await assertStep(page, step, stepTimeout);
       else if (step.action === "click")
-        await page.locator(step.selector).click({ timeout });
+        await page.locator(step.selector).click({ timeout: stepTimeout });
       else if (step.action === "fill")
-        await page.locator(step.selector).fill(step.value, { timeout });
-      else await page.locator(step.selector).press(step.key, { timeout });
+        await page
+          .locator(step.selector)
+          .fill(step.value, { timeout: stepTimeout });
+      else
+        await page
+          .locator(step.selector)
+          .press(step.key, { timeout: stepTimeout });
+      remaining(`scenario step ${index + 1} completion`);
       results[index]!.status = "passed";
     } catch {
       results[index]!.status = "failed";
+      remaining(`scenario step ${index + 1}`);
       // Playwright errors include input values and DOM text: keep them out of scenario diagnostics.
       throw new Error(
         `Scenario step ${index + 1} (${step.action}) failed. Check the selector and expected state in glocon.check.json.`,

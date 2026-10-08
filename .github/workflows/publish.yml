@@ -9,11 +9,55 @@ concurrency:
 jobs:
   validate:
     uses: ./.github/workflows/ci.yml
-  publish:
+  verify:
     needs: validate
     if: github.repository == 'lastlandofficial/globalconfig' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run release:verify
+      - name: Verify the candidate and its recorded logs
+        id: candidate
+        run: node scripts/check-release-artifact.mjs . "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        id: upload
+        with:
+          name: npm-release-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.candidate.outputs.archive }}
+            ${{ steps.candidate.outputs.manifest }}
+            .glocon/release/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-verification-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            glocon-*.release.json
+            .glocon/release/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment: npm-release
     permissions:
       contents: read
@@ -21,41 +65,75 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@v4
+          sparse-checkout: |
+            /package.json
+            /scripts/check-release-artifact.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - name: Install npm with trusted-publishing support
-        run: npm install --global npm@11
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run release:verify
-      - name: Identify the verified archive
+          package-manager-cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact_id }}
+          path: ${{ runner.temp }}/glocon-release-candidate
+          merge-multiple: true
+      - name: Verify the downloaded archive using Node builtins
         id: candidate
+        run: node scripts/check-release-artifact.mjs "$RUNNER_TEMP/glocon-release-candidate" "$GITHUB_SHA"
+      - name: Check bundled npm supports trusted publishing
         run: |
           node --input-type=module <<'NODE'
           import assert from 'node:assert/strict';
-          import { readFileSync, appendFileSync } from 'node:fs';
-          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-          const manifest = `glocon-${pkg.version}.release.json`;
-          const evidence = JSON.parse(readFileSync(manifest, 'utf8'));
-          assert.equal(evidence.status, 'verified-local-candidate-unpublished');
-          assert.equal(evidence.gitCommit, process.env.GITHUB_SHA);
-          assert.equal(evidence.archive, `glocon-${pkg.version}.tgz`);
-          appendFileSync(process.env.GITHUB_OUTPUT, `archive=${evidence.archive}\nmanifest=${manifest}\n`);
+          import { execFileSync } from 'node:child_process';
+          const version = execFileSync('npm', ['--version'], {encoding:'utf8'}).trim();
+          const [major, minor, patch] = version.split('.').map(Number);
+          assert.ok(major > 11 || (major === 11 && (minor > 5 || (minor === 5 && patch >= 1))), `npm >=11.5.1 is required; bundled version is ${version}`);
           NODE
       - name: Publish the tested archive through OIDC
-        run: npm publish "${{ steps.candidate.outputs.archive }}" --ignore-scripts --access public
-      - run: npm run check:distribution -- --verified-candidate
+        env:
+          CANDIDATE_ARCHIVE: ${{ steps.candidate.outputs.archive }}
+        run: npm publish "$RUNNER_TEMP/glocon-release-candidate/$CANDIDATE_ARCHIVE" --ignore-scripts --access public --registry https://registry.npmjs.org
+  public-install:
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.verify.outputs.artifact_id }}
+          path: ${{ runner.temp }}/glocon-release-candidate
+          merge-multiple: true
+      - name: Verify and stage the same candidate for the public install check
+        id: candidate
+        run: node scripts/check-release-artifact.mjs "$RUNNER_TEMP/glocon-release-candidate" "$GITHUB_SHA"
+      - name: Check the published bytes and fresh public installation
+        env:
+          CANDIDATE_ARCHIVE: ${{ steps.candidate.outputs.archive }}
+          CANDIDATE_MANIFEST: ${{ steps.candidate.outputs.manifest }}
+        run: |
+          cp "$RUNNER_TEMP/glocon-release-candidate/$CANDIDATE_ARCHIVE" .
+          cp "$RUNNER_TEMP/glocon-release-candidate/$CANDIDATE_MANIFEST" .
+          mkdir -p .glocon/public-distribution
+          npm run check:distribution -- --verified-candidate > .glocon/public-distribution/check.log 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: npm-release-evidence
-          path: |
-            glocon-*.tgz
-            glocon-*.release.json
-            .glocon/release/
+          name: npm-public-distribution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .glocon/public-distribution/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 30

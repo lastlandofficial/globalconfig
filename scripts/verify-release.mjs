@@ -147,7 +147,9 @@ try {
   evidence.validation.tests = {
     node: Number(all.match(/(?:#|ℹ)\s+tests\s+(\d+)/)?.[1] ?? 0),
     unit: Number(all.match(/Tests\s+(\d+) passed/)?.[1] ?? 0),
-    browser: Number(all.match(/\b(\d+) passed \([\d.]+s\)/)?.[1] ?? 0),
+    browser: Number(
+      all.match(/\b(\d+) passed \([\d.]+(?:ms|s|m|h)\)/)?.[1] ?? 0,
+    ),
   };
   for (const [suite, count] of Object.entries(evidence.validation.tests)) {
     if (!Number.isSafeInteger(count) || count < 1)

@@ -75,6 +75,81 @@ async function runningFixture(handle: RequestListener) {
 }
 const scenarioHTML = (body: string, script = "") =>
   `<!doctype html><html lang="en"><head><title>Scenario application</title><meta name="viewport" content="width=device-width"><style>body{margin:20px;font:16px system-ui;color:#111;background:#fff}button,a{display:inline-block;min-height:44px;padding:12px}</style></head><body><main>${body}</main><script>${script}</script></body></html>`;
+test("navigation and successive scenario steps exhaust one case deadline without executing a late action", async () => {
+  let firstStepReached = false;
+  let lateActions = 0;
+  let pending = 0;
+  const fixture = await runningFixture((req, res) => {
+    if (req.url === "/pending-request") {
+      pending++;
+      res.once("close", () => pending--);
+      return;
+    }
+    if (req.url === "/first-step-reached") {
+      firstStepReached = true;
+      res.end("ready");
+      return;
+    }
+    if (req.url === "/late-action") {
+      lateActions++;
+      res.end("saved");
+      return;
+    }
+    res.setHeader("content-type", "text/html");
+    if (req.url !== "/staged") {
+      res.end(scenarioHTML("<h1>Ready application</h1>"));
+      return;
+    }
+    setTimeout(
+      () =>
+        res.end(
+          scenarioHTML(
+            '<h1>Staged scenario</h1><button id="start">Start</button><button id="next" style="display:none">Next</button><button id="finish" style="display:none">Finish</button>',
+            `fetch('/pending-request').catch(() => {}); document.querySelector('#start').onclick = () => setTimeout(() => { document.querySelector('#next').style.display = 'inline-block'; fetch('/first-step-reached').catch(() => {}); }, 1800); document.querySelector('#next').onclick = () => setTimeout(() => { document.querySelector('#finish').style.display = 'inline-block'; }, 1800); document.querySelector('#finish').onclick = () => fetch('/late-action');`,
+          ),
+        ),
+      1000,
+    );
+  });
+  fixture.config.audit = { accessibility: false, timeout: 4000 };
+  fixture.config.pages = [
+    {
+      path: "/staged",
+      scenarios: [
+        {
+          name: "staged changes",
+          steps: [
+            { action: "click", selector: "#start" },
+            { action: "expect", selector: "#next", state: "visible" },
+            { action: "click", selector: "#next" },
+            { action: "expect", selector: "#finish", state: "visible" },
+            { action: "click", selector: "#finish" },
+          ],
+        },
+      ],
+    },
+  ];
+  try {
+    const report = await runChecks(fixture.config, { dir: fixture.dir });
+    expect(firstStepReached, JSON.stringify(report.cases)).toBe(true);
+    expect(report.exitCode).toBe(2);
+    const result = report.cases[0]!;
+    expect(result.status).toBe("error");
+    expect(result.message).toMatch(/time|deadline/i);
+    expect(result.report).toBeUndefined();
+    expect(result.steps!.slice(0, 3).map((step) => step.status)).toEqual([
+      "passed",
+      "passed",
+      "passed",
+    ]);
+    expect(result.steps![3]!.status).not.toBe("passed");
+    expect(result.steps![4]!.status).toBe("not-run");
+    expect(lateActions).toBe(0);
+    await expect.poll(() => pending).toBe(0);
+  } finally {
+    await fixture.close();
+  }
+});
 test("loading, error, retry, and success audit isolated final states with retained input and focus", async ({
   page,
 }) => {
