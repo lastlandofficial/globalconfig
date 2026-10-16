@@ -294,6 +294,9 @@ export async function runSteps(
   for (const [index, step] of scenario.steps.entries()) {
     try {
       const stepTimeout = remaining(`scenario step ${index + 1}`);
+      // Cancellation can finish the case before an awaited operation rejects.
+      // A started step stays failed until it completes within the deadline.
+      results[index]!.status = "failed";
       if (step.action === "expect") await assertStep(page, step, stepTimeout);
       else if (step.action === "click")
         await page.locator(step.selector).click({ timeout: stepTimeout });
