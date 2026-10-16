@@ -112,7 +112,13 @@ test("navigation and readiness share a case deadline, close pending requests, an
   const fixture = await runningFixture((req, res) => {
     if (req.url === "/pending-request") {
       pending++;
-      res.once("close", () => pending--);
+      // Use the runner's server clock for both delays so this regression does
+      // not depend on browser timer scheduling during a selector wait.
+      const ready = setTimeout(() => res.end("ready"), 2000);
+      res.once("close", () => {
+        clearTimeout(ready);
+        pending--;
+      });
       return;
     }
     if (req.url === "/ready-reached") {
@@ -126,7 +132,7 @@ test("navigation and readiness share a case deadline, close pending requests, an
         navigationCompleted = true;
         res.end(
           readyHTML(
-            `fetch('/pending-request').catch(() => {}); setTimeout(() => { const marker = document.createElement('p'); marker.id = 'ready'; marker.textContent = 'Ready'; document.querySelector('main').append(marker); fetch('/ready-reached').catch(() => {}); }, 2000);`,
+            `fetch('/pending-request').then(response => response.text()).then(() => { const marker = document.createElement('p'); marker.id = 'ready'; marker.textContent = 'Ready'; document.querySelector('main').append(marker); fetch('/ready-reached').catch(() => {}); }).catch(() => {});`,
           ),
         );
       }, 1000);
@@ -150,6 +156,13 @@ test("navigation and readiness share a case deadline, close pending requests, an
     expect(readinessReached).toBe(false);
     await expect.poll(() => pending).toBe(0);
     expect((await fetch(fixture.config.baseURL)).ok).toBe(true);
+    // The same page really becomes ready when its combined budget permits it.
+    fixture.config.audit.timeout = 6000;
+    fixture.config.pages = [{ path: "/slow", readySelector: "#ready" }];
+    const completed = await runChecks(fixture.config, { dir: fixture.dir });
+    expect(completed.cases[0]!.status).toBe("completed");
+    expect(completed.exitCode).toBe(0);
+    await expect.poll(() => readinessReached).toBe(true);
   } finally {
     await fixture.close();
   }
