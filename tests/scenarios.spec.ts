@@ -144,7 +144,7 @@ test("navigation and successive scenario steps exhaust one case deadline without
       "passed",
       "passed",
     ]);
-    expect(result.steps![3]!.status).not.toBe("passed");
+    expect(result.steps![3]!.status).toBe("failed");
     expect(result.steps![4]!.status).toBe("not-run");
     expect(lateActions).toBe(0);
     await expect.poll(() => pending).toBe(0);
@@ -259,6 +259,10 @@ test("failed expectations and unused mock responses are incomplete, cannot be ba
     expect(JSON.stringify(report)).not.toContain("secret-expectation");
     expect(report.cases[1]!.message).toContain("consume every");
     expect(report.cases[2]!.mocks?.[0]?.calls).toBe(1);
+    const persisted = JSON.parse(
+      await readFile(join(dir, ".glocon/report.json"), "utf8"),
+    );
+    expect(persisted.cases[0].steps).toEqual(report.cases[0]!.steps);
     await expect(saveBaseline(dir, config, "Cannot accept")).rejects.toThrow(
       "every configured",
     );
