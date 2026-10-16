@@ -1,8 +1,16 @@
 # globalconfig
 
-**Less setup. Better developer experience. One JavaScript and TypeScript toolkit.**
+**Check application UI, calculate reviewed orders, and reuse exact country utilities.**
 
-glocon brings UI components, UI audits, state contracts, framework integrations, and country utilities into globalconfig. Use it in React, Next.js, React Native, Electron, or Node.js. Government-source privacy and tax workflows remain one part of the toolkit.
+globalconfig is packaged as `glocon`. Choose the workflow you need: check an existing web app, calculate tax and invoice drafts from reviewed business decisions, or use money, time and country helpers. UI checks observe rendered pages; financial checks apply selected engineering rules derived from government sources. See the documented runtime coverage before choosing an adapter.
+
+| Start here | First result | Guide |
+| --- | --- | --- |
+| Check UI regressions in an existing app | A local phone/desktop report | [UI project checks](docs/ui/project-checks.md) |
+| Calculate reviewed tax and invoice drafts | Exact amounts and a validated draft | [Financial workflow](docs/compliance/README.md) |
+| Use money, time or country helpers | A small import without UI tooling | [Country utilities](docs/getting-started.md) |
+
+Install the version used by the guide below, then follow one path. Independent application trials remain pending; the [trial protocol](docs/readiness-trials.md) defines how usefulness and finding accuracy will be measured.
 
 | Need | Import or command |
 | --- | --- |
@@ -35,13 +43,28 @@ bun add glocon
 
 These package managers share the npm registry; there is no separate Bun or pnpm publication step. ESM, CommonJS, and TypeScript declarations are included. Consumers do not need build tools or install scripts.
 
-For the current checkout, run `npm ci && npm run build && npm pack`, then install the resulting `glocon-0.7.0.tgz` in your app. UI setup preserves an existing tarball dependency.
+For the current checkout, build a candidate archive in this repository:
+
+```sh
+npm ci
+npm pack
+```
+
+Then, from your application directory, replace the path below with the actual archive path:
+
+```sh
+npm install /path/to/globalconfig/glocon-0.7.0.tgz
+npx --no-install glocon --version
+# Expected candidate version: 0.7.0
+```
+
+`npm pack` builds the library through its prepack hook. UI setup preserves an existing tarball dependency. All current-guide CLI examples use an already installed local binary. `npx --no-install` prevents an accidental registry fallback.
 
 Prebuilt tarballs are also available from [GitHub releases](https://github.com/lastlandofficial/globalconfig/releases). See [publishing](docs/publishing.md) for the release workflow.
 
 ## Tax and invoice workflows (introduced in 0.6.0)
 
-These commands require the financial 0.6.0 tarball or the locally built 0.7.0 candidate. Use your locally installed `glocon` binary; `npx --no-install glocon` prevents fetching the older registry version.
+This section describes the locally built **0.7.0 candidate**, installed above. The 0.6.0 archive supports the earlier financial workflow; its acceptance rules and billing capabilities differ. Verify `glocon --version` before following the current guide.
 
 Configure reviewed business/product decisions once, calculate complete orders, validate invoice drafts, and check exact financial results in CI. In 0.7.0, `compliance check` requires a successful invoice fixture with reviewed expected net, tax and gross amounts; use `--scope quotes` for an explicitly quote-only project. Includes mixed rates, discounts, country-specific rounding, reproducible snapshots, and an optional transactional SQLite store for invoice numbers and financial credits.
 
@@ -60,8 +83,8 @@ npx --no-install glocon invoice render invoice.json --output invoice.html
 ## Check your app with one command
 
 ```sh
-npx glocon init --ui
-npx glocon check
+npx --no-install glocon init --ui
+npx --no-install glocon check
 ```
 
 Setup detects Next.js or Vite and your package manager, installs missing tooling and Chromium, and generates project checks and CI. The check command starts your app, audits configured pages at phone and desktop widths, and writes a readable HTML report with highlighted screenshots and fix guidance.
@@ -72,20 +95,20 @@ Setup detects Next.js or Vite and your package manager, installs missing tooling
 - Re-running setup preserves your config, scripts, and edited workflows.
 
 ```sh
-npx glocon init --ui --pages /,/settings --url http://localhost:3000
-npx glocon check --json
+npx --no-install glocon init --ui --pages /,/settings --url http://localhost:3000
+npx --no-install glocon check --json
 ```
 
 Open `.glocon/report.html` after the run. Reports and test sessions stay in the gitignored `.glocon/` directory; screenshots may contain application content. [Read the project-check workflow](docs/ui/project-checks.md) for protected pages, configuration, CI, baseline review, and limits.
 
-You can also install the command globally with `npm install -g glocon`. Project checks resolve Playwright from your application directory.
+A global installation uses the registry version unless you install a candidate archive explicitly. Project checks resolve Playwright and axe from your application directory; keep the project dependency pinned to the version you reviewed.
 
 ## Check loading, errors, retries, and success
 
 **New in 0.5.0:** named interaction scenarios run through the same `glocon check` command. Click, fill, press keys, assert focus or retained input, then audit the resulting state at every screen size.
 
 ```sh
-npx glocon check --example
+npx --no-install glocon check --example
 ```
 
 Copy the printed page entry into your `glocon.check.json` pages array and adapt the selectors and API payloads. Optional API mocks make loading and retry flows repeatable. Reports show which steps passed; failed interactions and unused mocks are incomplete checks that cannot be baselined. [Scenario guide and retry example](docs/ui/scenarios.md).
@@ -104,13 +127,12 @@ export function ProfileForm() {
 }
 ```
 
-React is an optional peer dependency. The existing standalone auditor remains available:
+React is an optional peer dependency. After installing the selected glocon version, the standalone auditor needs both Playwright and its axe adapter:
 
 ```sh
-npm install glocon
-npm install -D playwright
-npx playwright install chromium
-npx glocon audit http://localhost:3000 --json
+npm install -D playwright @axe-core/playwright
+npx --no-install playwright install chromium
+npx --no-install glocon audit http://localhost:3000 --json
 ```
 
 `glocon ui init` still creates `glocon.ui.json` for standalone audits. Project checks use `glocon.check.json`. UI features require no country configuration. See the [UI guide](docs/ui/README.md), [framework integrations](docs/ui/integrations.md), and [rule reference](docs/ui/rules.md).
@@ -118,9 +140,8 @@ npx glocon audit http://localhost:3000 --json
 ## Set up country utilities and government-source workflows
 
 ```sh
-npm install -g glocon
-glocon init
-glocon plan
+npx --no-install glocon init
+npx --no-install glocon plan
 ```
 
 `init` asks for the country, adds a local `glocon` dependency, and creates shared JSON configuration plus clients for frontend bundlers and Node.js. Existing setup files are preserved. `plan` shows applicability questions, implementation tasks, suggested evidence, and official sources. Set your reviewed answers in `glocon.config.json`; unanswered facts stay unknown.
@@ -306,7 +327,7 @@ const { createGlobalConfig } = require('glocon');
 const japan = createGlobalConfig({ country: 'JP' });
 ```
 
-Node.js 20+ and Bun are supported. Browser and React Native apps need a runtime with the required `Intl` and `BigInt` support, plus a bundler that resolves npm imports; verify the target engine's locale and time-zone behavior. Country utilities and the UI core require no framework, DOM, environment variable, or server process. The React and browser adapters have their documented runtime requirements. The CLI uses Node.js separately from the runtime library. See [integration guidance](docs/getting-started.md) for React, Next.js, React Native, Electron, and Node.js.
+Node.js 20.3+ and Bun are supported. Browser and React Native apps need a runtime with the required `Intl` and `BigInt` support, plus a bundler that resolves npm imports; verify the target engine's locale and time-zone behavior. Country utilities and the UI core require no framework, DOM, environment variable, or server process. The React and browser adapters have their documented runtime requirements. The CLI uses Node.js separately from the runtime library. See [integration guidance](docs/getting-started.md) for React, Next.js, React Native, Electron, and Node.js.
 
 ## Develop
 

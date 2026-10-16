@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createServer } from "node:http";
 import { auditPage, auditStates, assertUI } from "../src/ui/playwright";
 import { collectSnapshot } from "../src/ui/browser";
-import { defineContract } from "../src/ui";
+import { auditSnapshot, defineContract } from "../src/ui";
 const exec = promisify(execFile);
 test("finds accessibility and UX defects in a real rendered page", async ({
   page,
@@ -272,11 +273,327 @@ test("metered invoice and exact fractional credits run in the browser", async ({
   await page.goto("/finance");
   await expect(page.locator("#metered-result")).toHaveText(
     JSON.stringify({
-      engine: "glocon-order-2",
+      engine: "glocon-order-3",
       gross: "17",
       credits: ["5", "6", "6"],
     }),
   );
+});
+
+test("collector respects visible descendants and CSS overrides of hidden", async ({
+  page,
+}) => {
+  await page.goto("/fixtures/healthy.html");
+  await page.setContent(`<!doctype html><html lang="en"><body><main>
+    <div style="visibility:hidden"><button id="visible-child" style="visibility:visible;width:12px;height:12px;padding:0;border:0">Save</button></div>
+    <div style="opacity:0"><button id="transparent-child">Hidden</button></div>
+    <div style="display:none"><button id="hidden-child">Hidden</button></div>
+    <button id="hidden-override" hidden style="display:block;width:44px;height:44px">Visible</button>
+  </main></body></html>`);
+  const snapshot = await page.evaluate(collectSnapshot, {});
+  expect(
+    snapshot.elements.find((element) => element.target === "#visible-child")
+      ?.visible,
+  ).toBe(true);
+  expect(
+    snapshot.elements.find((element) => element.target === "#hidden-override")
+      ?.visible,
+  ).toBe(true);
+  expect(
+    snapshot.elements.find((element) => element.target === "#transparent-child")
+      ?.visible,
+  ).toBe(false);
+  expect(
+    snapshot.elements.find((element) => element.target === "#hidden-child")
+      ?.visible,
+  ).toBe(false);
+  expect(auditSnapshot(snapshot).findings).toEqual([
+    expect.objectContaining({
+      ruleId: "interaction/target-size",
+      target: "#visible-child",
+    }),
+  ]);
+});
+
+test("collector detects rendered label text without requiring a label box", async ({
+  page,
+}) => {
+  await page.goto("/fixtures/healthy.html");
+  await page.setContent(`<!doctype html><html lang="en"><body><main>
+    <label id="contents-label" style="display:contents">Email<input id="contents-input" placeholder="Work email" style="height:44px"></label>
+    <label for="hidden-label-input"><span style="visibility:hidden">Hidden label</span></label>
+    <input id="hidden-label-input" placeholder="Work email" style="height:44px">
+  </main></body></html>`);
+  const snapshot = await page.evaluate(collectSnapshot, {});
+  expect(
+    snapshot.elements.find((element) => element.target === "#contents-label")
+      ?.visible,
+  ).toBe(true);
+  expect(
+    snapshot.elements.find((element) => element.target === "#contents-input")
+      ?.attributes["data-glocon-visible-label"],
+  ).toBe("true");
+  expect(auditSnapshot(snapshot).findings).toEqual([
+    expect.objectContaining({
+      ruleId: "form/placeholder-label",
+      target: "#hidden-label-input",
+    }),
+  ]);
+});
+
+test("display contents controls use their rendered content hit area", async ({
+  page,
+}) => {
+  await page.goto("/fixtures/healthy.html");
+  await page.setContent(`<!doctype html><html lang="en"><body><main>
+    <a id="contents-link" href="#destination" style="display:contents"><span style="display:block;width:100px;height:100px">Open destination</span></a>
+  </main></body></html>`);
+  const snapshot = await page.evaluate(collectSnapshot, {});
+  const link = snapshot.elements.find(
+    (element) => element.target === "#contents-link",
+  );
+  expect(link?.visible).toBe(true);
+  expect(link?.rect).toMatchObject({ width: 100, height: 100 });
+  expect(auditSnapshot(snapshot).findings).toEqual([]);
+});
+
+test("deep display contents trees are inspected without recursive call stack growth", async ({
+  page,
+}) => {
+  await page.goto("/fixtures/healthy.html");
+  for (const depth of [30, 4500]) {
+    await page.evaluate((depth) => {
+      document.body.innerHTML = "<main></main>";
+      let parent = document.querySelector("main")!;
+      for (let index = 0; index < depth; index++) {
+        const child = document.createElement("div");
+        child.id = `deep-${index}`;
+        child.style.display = "contents";
+        parent.append(child);
+        parent = child;
+      }
+      const button = document.createElement("button");
+      button.id = "deep-button";
+      button.textContent = "Save";
+      button.style.cssText = "width:44px;height:44px";
+      parent.append(button);
+    }, depth);
+    const results = await page.evaluate(
+      ({ collector }) => {
+        const snapshot = (0, eval)(`(${collector})`)({});
+        const rect = document
+          .querySelector("#deep-button")!
+          .getBoundingClientRect();
+        return {
+          inspected: snapshot.collection.inspected,
+          truncated: snapshot.collection.truncated,
+          rendered: rect.width > 0 && rect.height > 0,
+          outerVisible: snapshot.elements.find(
+            (element: { target: string }) => element.target === "#deep-0",
+          ).visible,
+          buttonVisible: snapshot.elements.find(
+            (element: { target: string }) => element.target === "#deep-button",
+          ).visible,
+        };
+      },
+      { collector: collectSnapshot.toString() },
+    );
+    if (depth === 30) expect(results.rendered).toBe(true);
+    // Extreme DOM depth may exceed a browser's rendering limit. Collection still
+    // completes and its visibility must reflect the browser's measured geometry.
+    expect(results).toMatchObject({
+      truncated: false,
+      outerVisible: results.rendered,
+      buttonVisible: results.rendered,
+    });
+    expect(results.inspected).toBeGreaterThan(depth);
+  }
+});
+
+test("nested inline suppressions inherit every applicable ancestor declaration", async ({
+  page,
+}) => {
+  await page.goto("/fixtures/healthy.html");
+  await page.setContent(`<!doctype html><html lang="en"><body><main>
+    <section id="outer-ignore" data-glocon-ignore="interaction/target-size">
+      <div id="inner-ignore" data-glocon-ignore="interaction/positive-tabindex">
+        <span data-glocon-ignore=""><button id="nested-ignore" tabindex="3" style="width:12px;height:12px;padding:0;border:0">Save</button></span>
+      </div>
+    </section>
+  </main></body></html>`);
+  const snapshot = await page.evaluate(collectSnapshot, {});
+  expect(
+    snapshot.elements.find((element) => element.target === "#nested-ignore")
+      ?.ignore,
+  ).toEqual(["interaction/target-size", "interaction/positive-tabindex"]);
+  const report = auditSnapshot(snapshot);
+  expect(report.findings).toEqual([]);
+  expect(
+    report.coverage.limitations.filter((limitation) =>
+      limitation.startsWith("Inline suppression"),
+    ),
+  ).toEqual([
+    "Inline suppression at #outer-ignore: interaction/target-size (custom rules only).",
+    "Inline suppression at #inner-ignore: interaction/positive-tabindex (custom rules only).",
+  ]);
+});
+
+test("wide sibling lists do not repeatedly scan their complete parent collection", async ({
+  page,
+}) => {
+  await page.goto("/fixtures/healthy.html");
+  const result = await page.evaluate(
+    ({ collector, count }) => {
+      document.body.innerHTML = `<main>${Array.from({ length: count }, () => '<button style="width:44px;height:44px">Save</button>').join("")}</main>`;
+      const descriptor = Object.getOwnPropertyDescriptor(
+        Element.prototype,
+        "children",
+      )!;
+      let siblingsRead = 0;
+      Object.defineProperty(Element.prototype, "children", {
+        ...descriptor,
+        get() {
+          const children = descriptor.get!.call(this) as HTMLCollection;
+          siblingsRead += children.length;
+          return children;
+        },
+      });
+      try {
+        const snapshot = (0, eval)(`(${collector})`)({});
+        return {
+          siblingsRead,
+          targets: new Set(
+            snapshot.elements.map(
+              (element: { target: string }) => element.target,
+            ),
+          ).size,
+          elements: snapshot.elements.length,
+          lastTargetMatches:
+            document.querySelector(snapshot.elements.at(-1).target) ===
+            document.querySelector("main")!.lastElementChild,
+        };
+      } finally {
+        Object.defineProperty(Element.prototype, "children", descriptor);
+      }
+    },
+    { collector: collectSnapshot.toString(), count: 2048 },
+  );
+  expect(result.siblingsRead).toBeLessThan(2048 * 6);
+  expect(result.targets).toBe(result.elements);
+  expect(result.lastTargetMatches).toBe(true);
+});
+
+test("auditPage bounds stalled dynamic font readiness", async ({ page }) => {
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/stalled-audit-font.woff", async (route) => {
+    await blocked;
+    await route.abort().catch(() => {});
+  });
+  await page.goto("/fixtures/healthy.html");
+  await page.evaluate(() => {
+    const font = new FontFace(
+      "AuditStalledFont",
+      'url("/stalled-audit-font.woff")',
+    );
+    document.fonts.add(font);
+    void font.load().catch(() => {});
+  });
+  try {
+    await expect(
+      auditPage(page, { timeout: 200, accessibility: false }),
+    ).rejects.toThrow(/timed out.*font readiness/);
+  } finally {
+    release();
+  }
+});
+
+test("CLI exits and cleans up when dynamic font readiness exceeds its total budget", async () => {
+  const server = createServer((request, response) => {
+    if (request.url === "/stalled-font.woff") return;
+    response.setHeader("content-type", "text/html");
+    response.end(`<!doctype html><html lang="en"><head><title>Font timeout</title></head><body><main><h1>Font timeout</h1></main>
+      <script>addEventListener("load", () => {
+        const font = new FontFace("StalledFont", "url(/stalled-font.woff)");
+        document.fonts.add(font);
+        font.load().catch(() => {});
+      });</script></body></html>`);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string")
+      throw new Error("No fixture port");
+    await expect(
+      exec(
+        process.execPath,
+        [
+          "bin/glocon.mjs",
+          "audit",
+          `http://127.0.0.1:${address.port}/`,
+          "--timeout",
+          "1500",
+          "--no-a11y",
+          "--json",
+        ],
+        { timeout: 10000 },
+      ),
+    ).rejects.toMatchObject({
+      code: 2,
+      stderr: expect.stringMatching(/timed out/i),
+    });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+test("CLI waits for a reviewed SPA destination before checking its settled content", async () => {
+  const server = createServer((_request, response) => {
+    response.setHeader("content-type", "text/html");
+    response.end(`<!doctype html><html lang="en"><head><title>Reviewed SPA destination</title></head><body><main><h1>Loading</h1></main>
+      <script>setTimeout(() => {
+        history.replaceState({}, "", "/settled");
+        document.querySelector("main").innerHTML = '<h1 id="ready">Reviewed destination</h1>';
+      }, 100);</script></body></html>`);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const address = server.address();
+    if (!address || typeof address === "string")
+      throw new Error("No fixture port");
+    const origin = `http://127.0.0.1:${address.port}`;
+    const result = await exec(
+      process.execPath,
+      [
+        "bin/glocon.mjs",
+        "audit",
+        `${origin}/initial`,
+        "--expected-url",
+        `${origin}/settled`,
+        "--ready",
+        "#ready",
+        "--no-a11y",
+        "--json",
+      ],
+      { timeout: 10000 },
+    );
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      source: `${origin}/settled`,
+      findings: [],
+    });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
 
 test("explicit same-origin accessibility mode reports its frame limit and still finds defects", async ({

@@ -1,6 +1,6 @@
-import { calculateOrder } from "./engine";
 import { createInvoiceDraft, createCreditNoteDraft } from "./invoice";
 import { copy, digest } from "./rules";
+import { obj, text } from "./validation";
 import type {
   ComplianceConfig,
   Order,
@@ -10,12 +10,14 @@ import type {
   CreditNoteDraft,
 } from "./types";
 /** Compatible with node:sqlite DatabaseSync and synchronous SQLite drivers. */
+export type SQLiteValue = string | number | bigint | null | Uint8Array;
+export type SQLiteRow = Record<string, unknown>;
 export interface SQLiteDatabase {
   exec(sql: string): unknown;
   prepare(sql: string): {
-    run(...params: any[]): unknown;
-    get(...params: any[]): any;
-    all(...params: any[]): any[];
+    run(...params: SQLiteValue[]): unknown;
+    get(...params: SQLiteValue[]): SQLiteRow | undefined;
+    all(...params: SQLiteValue[]): SQLiteRow[];
   };
 }
 export interface StoredInvoice {
@@ -32,6 +34,7 @@ export interface StoredCredit {
 export function createSQLiteInvoiceStore(db: SQLiteDatabase) {
   db.exec(`PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS glocon_documents (number TEXT PRIMARY KEY, business TEXT NOT NULL, kind TEXT NOT NULL, original TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS glocon_credit_history ON glocon_documents (business,original,kind);
 CREATE TABLE IF NOT EXISTS glocon_requests (business TEXT NOT NULL, request_key TEXT NOT NULL, fingerprint TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(business,request_key));
 CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT NOT NULL, period TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY(business,series,period));`);
   const transaction = <T>(fn: () => T): T => {
@@ -63,7 +66,7 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
       if (previous) {
         if (previous.fingerprint !== fingerprint)
           throw Error("Idempotency key was already used for different input.");
-        return JSON.parse(previous.result) as T;
+        return JSON.parse(storedText(previous, "result")) as T;
       }
       const result = fn();
       db.prepare("INSERT INTO glocon_requests VALUES(?,?,?,?)").run(
@@ -90,11 +93,18 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
     db.prepare(
       "UPDATE glocon_sequences SET value=value+1 WHERE business=? AND series=? AND period=?",
     ).run(business, series, period);
-    const { value } = db
+    const row = db
       .prepare(
         "SELECT value FROM glocon_sequences WHERE business=? AND series=? AND period=?",
       )
       .get(business, series, period);
+    const value = row?.value;
+    if (
+      (typeof value !== "number" && typeof value !== "bigint") ||
+      (typeof value === "number" && !Number.isSafeInteger(value)) ||
+      value < 1
+    )
+      throw Error("Stored invoice sequence is not a positive exact integer.");
     const number = `${series}/${period}/${value}`;
     if (number.length > 16)
       throw Error("Invoice sequence exhausted its 16-character number space.");
@@ -108,11 +118,12 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
       order: Order;
       details: Omit<InvoiceDetails, "number">;
     }): StoredInvoice {
-      // Recalculate from server-owned prices and treatments; never accept client totals.
-      const calculated = calculateOrder(input.config, input.order);
-      if (calculated.status !== "ready")
-        throw Error(JSON.stringify(calculated));
+      // Replay an existing identical operation before applying current validation
+      // rules. New operations still recalculate from server-owned inputs below.
+      obj(input.config);
+      obj(input.config.business);
       const b = input.config.business;
+      text(b.id, "Business ID");
       return idempotent(
         b.id,
         input.key,
@@ -159,7 +170,7 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
           "SELECT data FROM glocon_documents WHERE business=? AND number=?",
         )
         .get(business, `${business}:${number}`);
-      return row ? JSON.parse(row.data) : undefined;
+      return row ? JSON.parse(storedText(row, "data")) : undefined;
     },
     /** Financial credit record. Statutory credit-note rendering/filing still requires jurisdiction review. */
     credit(input: {
@@ -184,13 +195,18 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
             .get(input.business, `${input.business}:${input.originalNumber}`);
           if (!row)
             throw Error("Original invoice not found for this business.");
-          const original = (JSON.parse(row.data) as StoredInvoice).document;
+          const original = (
+            JSON.parse(storedText(row, "data")) as StoredInvoice
+          ).document;
           const history = db
             .prepare(
               "SELECT data FROM glocon_documents WHERE business=? AND original=? AND kind='financial-credit' ORDER BY rowid",
             )
             .all(input.business, input.originalNumber)
-            .map((row) => (JSON.parse(row.data) as StoredCredit).document);
+            .map(
+              (row) =>
+                (JSON.parse(storedText(row, "data")) as StoredCredit).document,
+            );
           const b = original.calculation.snapshot.config.business;
           const series = `C${b.invoiceSeries}`;
           const number = next(b.id, series, input.request.date, b.country);
@@ -198,6 +214,7 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
             original,
             { ...input.request, number },
             history,
+            { version: 2 },
           );
           if (result.status !== "ready") throw Error(JSON.stringify(result));
           const stored: StoredCredit = {
@@ -217,4 +234,9 @@ CREATE TABLE IF NOT EXISTS glocon_sequences (business TEXT NOT NULL, series TEXT
       );
     },
   });
+}
+function storedText(row: SQLiteRow, field: string): string {
+  const value = row[field];
+  if (typeof value !== "string") throw Error(`Stored ${field} must be text.`);
+  return value;
 }

@@ -72,7 +72,7 @@ A native accessibility snapshot should expose a name for each actionable control
 
 ## axe/*
 
-The Playwright adapter delegates accessibility checking to axe using WCAG A/AA tags through 2.2 and best practices. Violations with minor impact are warnings; other violation impacts are errors. Unresolved checks are coverage limitations. Use exact IDs such as `axe/button-name` in rule configuration. Counts vary with the installed axe version and the document.
+The Playwright adapter delegates accessibility checking to axe using WCAG A/AA tags through 2.2 and best practices. Violations with minor impact are warnings; other violation impacts are errors. Unresolved checks are coverage limitations and `manual-review` coverage outcomes, not passing results. Passing and failing outcomes retain the rule and target where axe provides one, before suppression. Use exact IDs such as `axe/button-name` in rule configuration. Counts vary with the installed axe version and the document. A rule listed in `coverage.rules` alone does not establish that a previously defective target passed.
 
 ## contract/missing-ui
 

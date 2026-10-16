@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "release": "0.7.0",
   "status": "not-run",
   "participant": {
@@ -21,27 +21,37 @@
       "startedAt": null,
       "finishedAt": null,
       "successWithoutAssistance": null,
-      "errors": []
+      "errors": [],
+      "workflow": "shared",
+      "applicable": null,
+      "observedVersion": null
     },
     {
       "id": "first-ui-report",
       "instruction": "Run UI setup and glocon check in a representative application; inspect phone and desktop reports.",
       "minutesToFirstReport": null,
       "assistanceRequired": [],
-      "expectedCoverageObserved": null
+      "expectedCoverageObserved": null,
+      "workflow": "ui",
+      "applicable": null,
+      "unaidedMinutes": null
     },
     {
       "id": "protected-page",
       "instruction": "Use a test session for one protected page, then invalidate it and check the result.",
       "correctPageObserved": null,
-      "expiredSessionDetected": null
+      "expiredSessionDetected": null,
+      "workflow": "ui",
+      "applicable": null
     },
     {
       "id": "real-state-scenarios",
       "instruction": "Configure actual loading, error, retry, empty and success states using the application API behavior.",
       "statesCovered": [],
       "missingStates": [],
-      "authoringDifficulties": []
+      "authoringDifficulties": [],
+      "workflow": "ui",
+      "applicable": null
     },
     {
       "id": "review-findings",
@@ -55,7 +65,10 @@
         "falsePositiveReason",
         "actionability",
         "fixTimeMinutes"
-      ]
+      ],
+      "workflow": "ui",
+      "applicable": null,
+      "reviewedFindingsCount": null
     },
     {
       "id": "financial-acceptance",
@@ -63,26 +76,85 @@
       "reviewerReference": null,
       "exactAmountsAgreed": null,
       "invoiceFieldsReviewed": null,
-      "unsupportedBusinessRequirements": []
+      "unsupportedBusinessRequirements": [],
+      "workflow": "financial",
+      "applicable": null,
+      "caseCount": null
     },
     {
       "id": "rounding-migration",
       "instruction": "Compare retained receipts and business rounding policy before and after the shared India default change, if applicable.",
       "applicable": null,
       "policy": null,
-      "existingDataReplays": null
+      "existingDataReplays": null,
+      "workflow": "financial"
+    },
+    {
+      "id": "financial-lifecycle",
+      "workflow": "financial",
+      "applicable": null,
+      "instruction": "Verify an original invoice, exact partial credits, identical-key retry, restart, changed-input rejection and excessive-credit rejection. Include metered quantities if the business uses them.",
+      "reviewerReference": null,
+      "retryAgreed": null,
+      "restartAgreed": null,
+      "changedInputRejected": null,
+      "overCreditRejected": null,
+      "historicalReplayAgreed": null,
+      "meteredApplicable": null,
+      "fractionalCreditAmountsAgreed": null
     },
     {
       "id": "value-and-fit",
       "instruction": "Report whether the toolkit reduced work, which results led to fixes, and which required workflows it does not support.",
       "workSavedMinutes": null,
       "adoptionDecision": null,
-      "missingCapabilities": []
+      "missingCapabilities": [],
+      "workflow": "shared",
+      "applicable": null
     }
   ],
   "observations": [],
   "completedAt": null,
   "reviewedBy": null,
   "conclusion": null,
-  "limits": "A prepared trial sheet does not establish independent user validation; leave outcome fields empty until the actual trial occurs."
+  "limits": "Prepared protocol only: no independent trials have been run or recorded here. Select UI or financial scope; leave outcome fields null until observed. Unresolved criteria and unsupported business requirements prevent an acceptance claim.",
+  "selectedWorkflow": null,
+  "protocol": {
+    "reference": "docs/readiness-trials.md",
+    "revision": 1,
+    "frozenBeforeFirstTrial": null,
+    "candidateIntegrity": null,
+    "sourceCommit": null,
+    "facilitator": null,
+    "independentReviewer": null
+  },
+  "acceptanceCriteria": {
+    "revision": 1,
+    "status": "proposed-before-trial",
+    "ui": {
+      "minimumIndependentDevelopers": 3,
+      "minimumRealFrameworks": 2,
+      "minimumUnaidedFirstReports": 2,
+      "maximumUnaidedFirstReportMinutes": 15,
+      "minimumReviewedErrorWarningFindings": 20,
+      "minimumConfirmedActionableFindingFraction": 0.8,
+      "minimumCompletedScenarioAndBaselineWorkflows": 2,
+      "minimumSpecificValueAndContinuedAdoptionDecisions": 2,
+      "maximumFalsePasses": 0,
+      "observed": null,
+      "passed": null
+    },
+    "financial": {
+      "minimumIndependentDeveloperReviewerTeams": 2,
+      "minimumCasesPerBusiness": 5,
+      "requiredScope": "both",
+      "requiredAgreementFraction": 1,
+      "maximumIncorrectReadyResults": 0,
+      "requiresRetryRestartChangedInputAndOverCreditChecks": true,
+      "requiresReviewedDocumentFieldsAndExternalIssuanceProcess": true,
+      "observed": null,
+      "passed": null
+    },
+    "assessmentScope": "Cohort-level targets; an individual worksheet alone does not establish cohort acceptance."
+  }
 }

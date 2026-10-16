@@ -6,7 +6,7 @@ export {
   type CheckPage,
   type CheckViewport,
 } from "./config";
-export { runChecks, type RunCheckOptions } from "./runner";
+export { runChecks, type RunCheckOptions, type CheckProgress } from "./runner";
 export {
   formatCheckReport,
   renderCheckReport,

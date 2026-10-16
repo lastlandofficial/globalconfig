@@ -1,6 +1,6 @@
 # Contributing
 
-Use Node.js 20 or newer. Install dependencies with `npm ci`, install Chromium with `npx playwright install chromium`, then run `npm run check:all`. The repository keeps one npm lockfile; consumers can use npm, pnpm, Bun, or Yarn.
+Use Node.js 20.11 or newer for repository tooling; consumers require Node.js 20.3 or newer. Install dependencies with `npm ci`, install Chromium with `npx --no-install playwright install chromium`, then run `npm run check:all`. The repository keeps one npm lockfile; consumers can use npm, pnpm, Bun, or Yarn.
 
 For each new rule, document the user problem, evidence source, exact measurement, severity, confidence, exceptions, and fix. Add a failing example and an intentional passing counterexample. Prefer real browser tests for layout and accessible interaction. Avoid screenshot-only assertions for semantic requirements.
 

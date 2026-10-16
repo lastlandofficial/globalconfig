@@ -4,7 +4,12 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: true,
   workers: 2,
-  use: { baseURL: "http://127.0.0.1:4179", headless: true },
+  use: {
+    baseURL: "http://127.0.0.1:4179",
+    headless: true,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
   ...(process.env.GLOCON_BROWSER_MATRIX === "1"
     ? {
         projects: ["chromium", "firefox", "webkit"].map((browserName) => ({

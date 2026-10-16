@@ -1,4 +1,6 @@
 import { calculationEngine } from "./billing";
+import { ORDER_PROFILE_1 } from "./profiles";
+import { validateTreatment as validateLegacyTreatment } from "./legacy-validation";
 import type { BillingPolicy } from "./types";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
@@ -6,7 +8,6 @@ import { dateOnly, freeze } from "../internal";
 import { array, unique, validateTreatment } from "./validation";
 import type {
   ComplianceIssue,
-  Requirement,
   RulePack,
   TaxProvider,
   TreatmentRule,
@@ -50,84 +51,27 @@ export function issue(
 ): ComplianceIssue {
   return { code, field, message, fix, ...(source ? { source } : {}) };
 }
-const inSource =
-  "https://taxinformation.cbic.gov.in/content-page/explore-rules/1000136/1000001";
-const jpSource =
-  "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6625.htm";
-const base = {
-  reviewedOn: "2026-09-09",
-  reviewAfter: "2026-12-09",
-  scope:
-    "Selected ordinary domestic invoice checks; applicability and exceptions require a recorded business review.",
-};
-export const requirements: readonly Requirement[] = freeze([
-  ...[
-    [
-      "IN-GST-INVOICE-PARTIES",
-      "Supplier and recipient particulars",
-      "Rule 46(a), (d), (e)",
-    ],
-    ["IN-GST-INVOICE-NUMBER", "Invoice number and date", "Rule 46(b), (c)"],
-    [
-      "IN-GST-INVOICE-ITEMS",
-      "Classification, quantity, unit and description",
-      "Rule 46(f)–(h)",
-    ],
-    [
-      "IN-GST-INVOICE-TOTALS",
-      "Taxable value, rates and tax amounts",
-      "Rule 46(i)–(m)",
-    ],
-    [
-      "IN-GST-INVOICE-PLACE-OF-SUPPLY",
-      "Place of supply and delivery address",
-      "Rule 46(n), (o)",
-    ],
-    [
-      "IN-GST-INVOICE-AUTHORIZATION",
-      "Signature, reverse charge and e-invoice review",
-      "Rule 46(p)–(s), Rule 48",
-    ],
-  ].map(([id, title, provision]) => ({
-    ...base,
-    id: id!,
-    title: title!,
-    provision: provision!,
-    country: "IN" as const,
-    source: inSource,
-  })),
-  {
-    ...base,
-    id: "JP-INVOICE-PARTICULARS",
-    title: "Qualified invoice particulars",
-    provision: "Consumption Tax Act 57-4; NTA No. 6625",
-    country: "JP",
-    source: jpSource,
-  },
-  {
-    ...base,
-    id: "JP-INVOICE-ROUNDING",
-    title: "Round once per invoice tax rate",
-    provision: "NTA No. 6371",
-    country: "JP",
-    source: "https://www.nta.go.jp/taxes/shiraberu/taxanswer/shohi/6371.htm",
-  },
-  {
-    ...base,
-    id: "US-CA-RATE-DECISION",
-    title: "Reviewed combined jurisdiction rate",
-    provision: "CDTFA Know Your Rate",
-    country: "US",
-    source: "https://cdtfa.ca.gov/taxes-and-fees/know-your-rate.htm",
-    scope:
-      "California reference only. No ZIP-only rate lookup, nexus decision, or other-state legal profile.",
-  },
-]);
+// The current exported requirements can move to a newer profile in a future release.
+// Historical calculation replay imports its pinned profile directly.
+export const requirements = ORDER_PROFILE_1.requirements;
 export function createReviewedTaxProvider(
   rules: readonly TreatmentRule[],
 ): TaxProvider {
+  return reviewedTaxProvider(rules, false, validateTreatment);
+}
+/** Original review semantics are retained only for registered historical-engine replay. */
+export function createHistoricalTaxProvider(
+  rules: readonly TreatmentRule[],
+): TaxProvider {
+  return reviewedTaxProvider(rules, true, validateLegacyTreatment);
+}
+function reviewedTaxProvider(
+  rules: readonly TreatmentRule[],
+  historical: boolean,
+  validateRule: typeof validateTreatment,
+): TaxProvider {
   array(rules, "Treatments");
-  rules.forEach(validateTreatment);
+  rules.forEach(validateRule);
   unique(rules as TreatmentRule[]);
   const saved = copy(rules);
   return Object.freeze({
@@ -156,6 +100,18 @@ export function createReviewedTaxProvider(
           ],
         };
       const rule = candidates[0]!;
+      if (!historical && on < (rule.review.appliesFrom ?? rule.review.on))
+        return {
+          status: "needs-context" as const,
+          issues: [
+            issue(
+              "TAX-REVIEW-NOT-APPLICABLE",
+              `rules.${rule.id}`,
+              "The treatment review does not cover this transaction date.",
+              "Record an explicit review applicability start when approving historical transactions.",
+            ),
+          ],
+        };
       if (on >= rule.review.after)
         return {
           status: "needs-context" as const,
@@ -174,7 +130,7 @@ export function createReviewedTaxProvider(
 }
 export interface ComplianceLock {
   version: 1;
-  engine: "glocon-order-1" | "glocon-order-2";
+  engine: "glocon-order-1" | "glocon-order-2" | "glocon-order-3";
   ruleRevision: string;
   rulesDigest: string;
   configDigest: string;

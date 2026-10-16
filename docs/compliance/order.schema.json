@@ -3,24 +3,20 @@
   "additionalProperties": false,
   "properties": {
     "id": {
-      "type": "string",
-      "minLength": 1
+      "$ref": "#/$defs/text"
     },
     "date": {
-      "type": "string",
-      "format": "date"
+      "$ref": "#/$defs/date"
     },
     "jurisdiction": {
-      "type": "string",
-      "minLength": 1
+      "$ref": "#/$defs/text"
     },
     "buyer": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "name": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "country": {
           "enum": [
@@ -30,16 +26,13 @@
           ]
         },
         "address": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "registrationId": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         },
         "stateCode": {
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/text"
         }
       },
       "required": [
@@ -63,12 +56,10 @@
         "additionalProperties": false,
         "properties": {
           "id": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/text"
           },
           "productId": {
-            "type": "string",
-            "minLength": 1
+            "$ref": "#/$defs/text"
           },
           "quantity": {
             "oneOf": [
@@ -78,15 +69,13 @@
                 "maximum": 1000000
               },
               {
-                "type": "string",
-                "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+                "$ref": "#/$defs/positiveQuantity"
               }
             ],
-            "description": "Decimal strings require a reviewed billing policy. Runtime validates positive quantity, maximum 1000000, and configured precision."
+            "description": "Integer quantities are always supported. Decimal strings require a reviewed billing policy; runtime applies its configured precision. Duplicate line IDs and currency precision are checked at runtime."
           },
           "discount": {
-            "type": "string",
-            "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+            "$ref": "#/$defs/nonnegativeDecimal"
           }
         },
         "required": [
@@ -99,8 +88,7 @@
       "maxItems": 1000
     },
     "discount": {
-      "type": "string",
-      "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+      "$ref": "#/$defs/nonnegativeDecimal"
     },
     "pricing": {
       "enum": [
@@ -121,8 +109,7 @@
       ]
     },
     "placeOfSupply": {
-      "type": "string",
-      "minLength": 1
+      "$ref": "#/$defs/text"
     }
   },
   "required": [
@@ -136,5 +123,36 @@
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "glocon transaction",
-  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.7.0/docs/compliance/order.schema.json"
+  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.7.0/docs/compliance/order.schema.json",
+  "description": "Structural and lexical validation for a transaction. Runtime additionally validates duplicate IDs, configured currency precision, and the presence and precision of a reviewed billing policy for string quantities.",
+  "$defs": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "nonnegativeDecimal": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^0*[0-9]{1,30}(?:\\.[0-9]{1,18}0*)?$",
+      "description": "Unsigned plain decimal string, below 1e30, with at most 18 significant fractional places (trailing zeros do not add precision). Currency or reviewed unit-price precision is validated at runtime."
+    },
+    "positiveQuantity": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^0*(?:[0-9]{1,6}(?:\\.[0-9]{1,18}0*)?|1000000(?:\\.0+)?)$",
+      "not": {
+        "pattern": "^0+(?:\\.0+)?$",
+        "type": "string"
+      },
+      "description": "Positive unsigned plain decimal quantity no greater than 1000000. String quantities require a reviewed billing policy; its quantityPrecision is enforced at runtime."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 10000,
+      "pattern": "\\S",
+      "description": "At most 10000 Unicode characters, including at least one non-whitespace character."
+    }
+  }
 }

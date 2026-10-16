@@ -1,4 +1,4 @@
-import type { ElementSnapshot, UISnapshot } from "../core/types";
+import type { ElementSnapshot, Rect, UISnapshot } from "../core/types";
 export interface CollectOptions {
   maxElements?: number;
 }
@@ -23,47 +23,203 @@ export function collectSnapshot(options: CollectOptions = {}): UISnapshot {
   limitations.push(
     "Closed shadow roots, canvas contents, and pseudo-elements are not inspected by custom checks.",
   );
+  const idCounts = new Map<string, number>();
+  const siblingCounts = new Map<Element, Map<string, number>>();
+  const siblingIndices = new WeakMap<Element, number>();
+  for (const el of all) {
+    if (el.id) idCounts.set(el.id, (idCounts.get(el.id) ?? 0) + 1);
+    if (el.parentElement) {
+      let counts = siblingCounts.get(el.parentElement);
+      if (!counts) {
+        counts = new Map();
+        siblingCounts.set(el.parentElement, counts);
+      }
+      const index = (counts.get(el.localName) ?? 0) + 1;
+      counts.set(el.localName, index);
+      siblingIndices.set(el, index);
+    }
+  }
+  const styles = new WeakMap<Element, CSSStyleDeclaration>();
+  const rectangles = new WeakMap<Element, DOMRect>();
+  const styleFor = (el: Element): CSSStyleDeclaration => {
+    let style = styles.get(el);
+    if (!style) {
+      style = getComputedStyle(el);
+      styles.set(el, style);
+    }
+    return style;
+  };
+  const rectFor = (el: Element): DOMRect => {
+    let rect = rectangles.get(el);
+    if (!rect) {
+      rect = el.getBoundingClientRect();
+      rectangles.set(el, rect);
+    }
+    return rect;
+  };
+  const hiddenSubtrees = new WeakMap<Element, boolean>();
+  const inHiddenSubtree = (el: Element): boolean => {
+    const pending: Element[] = [];
+    let current: Element | null = el;
+    while (current && !hiddenSubtrees.has(current)) {
+      pending.push(current);
+      current = current.parentElement;
+    }
+    let hidden = current ? hiddenSubtrees.get(current)! : false;
+    for (let index = pending.length - 1; index >= 0; index--) {
+      const node = pending[index]!;
+      const style = styleFor(node);
+      hidden =
+        hidden || style.display === "none" || Number(style.opacity) === 0;
+      hiddenSubtrees.set(node, hidden);
+    }
+    return hidden;
+  };
+  const textRectangles = new WeakMap<Node, DOMRect[]>();
+  const textRectsFor = (node: Node): DOMRect[] => {
+    if (textRectangles.has(node)) return textRectangles.get(node)!;
+    if (!node.textContent?.trim() || !node.parentElement) return [];
+    const parent = node.parentElement;
+    const visibility = styleFor(parent).visibility;
+    if (
+      inHiddenSubtree(parent) ||
+      visibility === "hidden" ||
+      visibility === "collapse"
+    )
+      return [];
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rectangles = Array.from(range.getClientRects()).filter(
+      (rect) => rect.width > 0 && rect.height > 0,
+    );
+    textRectangles.set(node, rectangles);
+    return rectangles;
+  };
+  const textIsVisible = (node: Node): boolean => textRectsFor(node).length > 0;
+  const hasVisibleText = (el: Element): boolean => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) if (textIsVisible(node)) return true;
+    return false;
+  };
+  const visibility = new WeakMap<Element, boolean>();
+  const subtreeBounds = new WeakMap<Element, Rect>();
+  const contentBounds = new WeakMap<Element, Rect>();
   const isVisible = (el: Element): boolean => {
-    const rect = el.getBoundingClientRect();
-    if (!(rect.width > 0 && rect.height > 0)) return false;
-    let ancestor: Element | null = el;
-    while (ancestor) {
-      const style = getComputedStyle(ancestor);
-      if (
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        style.visibility === "collapse" ||
-        Number(style.opacity) === 0 ||
-        ancestor.hasAttribute("hidden")
-      )
-        return false;
+    const pending: Array<{ node: Element; childrenReady: boolean }> = [
+      { node: el, childrenReady: false },
+    ];
+    while (pending.length) {
+      const { node, childrenReady } = pending.pop()!;
+      if (visibility.has(node)) continue;
+      const style = styleFor(node);
+      const rect = rectFor(node);
+      if (inHiddenSubtree(node)) {
+        visibility.set(node, false);
+        continue;
+      }
+      const visibleStyle =
+        style.visibility !== "hidden" && style.visibility !== "collapse";
+      if (visibleStyle && rect.width > 0 && rect.height > 0) {
+        visibility.set(node, true);
+        subtreeBounds.set(node, rect);
+        continue;
+      }
+      if (!childrenReady) {
+        pending.push({ node, childrenReady: true });
+        for (const child of node.childNodes)
+          if (child.nodeType === Node.ELEMENT_NODE)
+            pending.push({ node: child as Element, childrenReady: false });
+        continue;
+      }
+      let bounds: Rect | undefined;
+      const include = (rect: Rect) => {
+        if (!bounds) {
+          bounds = {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+          };
+          return;
+        }
+        const right = Math.max(bounds.x + bounds.width, rect.x + rect.width);
+        const bottom = Math.max(bounds.y + bounds.height, rect.y + rect.height);
+        const x = Math.min(bounds.x, rect.x);
+        const y = Math.min(bounds.y, rect.y);
+        bounds = { x, y, width: right - x, height: bottom - y };
+      };
+      for (const child of node.childNodes) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          const bounds = subtreeBounds.get(child as Element);
+          if (bounds) include(bounds);
+        } else if (child.nodeType === Node.TEXT_NODE) {
+          for (const rect of textRectsFor(child)) include(rect);
+        }
+      }
+      if (bounds) subtreeBounds.set(node, bounds);
+      const visible = style.display === "contents" && !!bounds;
+      visibility.set(node, visible);
+      if (visible) contentBounds.set(node, bounds!);
+    }
+    return visibility.get(el)!;
+  };
+  const paths = new WeakMap<Element, string>();
+  const targetFor = (el: Element): string => {
+    if (el.id && idCounts.get(el.id) === 1) return `#${CSS.escape(el.id)}`;
+    const pending: Element[] = [];
+    let current: Element | null = el;
+    while (current && !paths.has(current)) {
+      pending.push(current);
+      current = current.parentElement;
+    }
+    let path = current ? paths.get(current)! : "";
+    for (let index = pending.length - 1; index >= 0; index--) {
+      const node = pending[index]!;
+      path = node.parentElement
+        ? `${path} > ${node.localName}:nth-of-type(${siblingIndices.get(node)!})`
+        : node.localName;
+      paths.set(node, path);
+    }
+    return path;
+  };
+  const inheritedIgnores = new WeakMap<Element, string[]>();
+  const ignoreFor = (el: Element): string[] => {
+    const pending: Element[] = [];
+    let current: Element | null = el;
+    while (current && !inheritedIgnores.has(current)) {
+      pending.push(current);
+      current = current.parentElement;
+    }
+    let ignore = current ? inheritedIgnores.get(current)! : [];
+    for (let index = pending.length - 1; index >= 0; index--) {
+      const node = pending[index]!;
+      const own =
+        node
+          .getAttribute("data-glocon-ignore")
+          ?.split(/[\s,]+/)
+          .filter(Boolean) ?? [];
+      if (own.length) {
+        limitations.push(
+          `Inline suppression at ${targetFor(node)}: ${own.join(", ")} (custom rules only).`,
+        );
+        ignore = [...new Set([...ignore, ...own])];
+      }
+      inheritedIgnores.set(node, ignore);
+    }
+    return ignore;
+  };
+  const feedback =
+    '[role="status"], [role="progressbar"], progress, [data-glocon-feedback="true"]';
+  const feedbackAncestors = new WeakSet<Element>();
+  for (const marker of document.querySelectorAll(feedback)) {
+    if (!isVisible(marker)) continue;
+    let ancestor = marker.parentElement;
+    while (ancestor && !feedbackAncestors.has(ancestor)) {
+      feedbackAncestors.add(ancestor);
       ancestor = ancestor.parentElement;
     }
-    return true;
-  };
-  const targetFor = (el: Element): string => {
-    if (
-      el.id &&
-      document.querySelectorAll(`#${CSS.escape(el.id)}`).length === 1
-    )
-      return `#${CSS.escape(el.id)}`;
-    const parts: string[] = [];
-    let current: Element | null = el;
-    while (current) {
-      const tag = current.localName;
-      const parent: Element | null = current.parentElement;
-      if (!parent) {
-        parts.unshift(tag);
-        break;
-      }
-      const siblings = Array.from(parent.children).filter(
-        (child) => child.localName === tag,
-      );
-      parts.unshift(`${tag}:nth-of-type(${siblings.indexOf(current) + 1})`);
-      current = parent;
-    }
-    return parts.join(" > ");
-  };
+  }
   const textForIds = (ids: string | null): string =>
     (ids ?? "")
       .split(/\s+/)
@@ -103,8 +259,9 @@ export function collectSnapshot(options: CollectOptions = {}): UISnapshot {
       )
     )
       continue;
-    const style = getComputedStyle(el);
-    const rect = el.getBoundingClientRect();
+    const style = styleFor(el);
+    const visible = isVisible(el);
+    const rect = contentBounds.get(el) ?? rectFor(el);
     const attributes: Record<string, string> = {};
     for (const name of attributesToCollect)
       if (el.hasAttribute(name)) attributes[name] = el.getAttribute(name)!;
@@ -116,23 +273,14 @@ export function collectSnapshot(options: CollectOptions = {}): UISnapshot {
       .split(/\s+/)
       .map((id) => document.getElementById(id))
       .filter((label): label is HTMLElement => !!label);
-    if (
-      [...labels, ...referencedLabels].some(
-        (label) => isVisible(label) && !!label.textContent?.trim(),
-      )
-    )
+    if ([...labels, ...referencedLabels].some((label) => hasVisibleText(label)))
       attributes["data-glocon-visible-label"] = "true";
     if (
       textForIds(el.getAttribute("aria-describedby")) ||
       textForIds(el.getAttribute("aria-errormessage"))
     )
       attributes["data-glocon-error-text"] = "true";
-    const feedback =
-      '[role="status"], [role="progressbar"], progress, [data-glocon-feedback="true"]';
-    if (
-      el.matches(feedback) ||
-      Array.from(el.querySelectorAll(feedback)).some(isVisible)
-    )
+    if (el.matches(feedback) || feedbackAncestors.has(el))
       attributes["data-glocon-feedback"] = "true";
     const tag = el.localName;
     const role =
@@ -163,22 +311,13 @@ export function collectSnapshot(options: CollectOptions = {}): UISnapshot {
       el.getAttribute("alt") ||
       el.getAttribute("title") ||
       "";
-    const ignored = el.closest("[data-glocon-ignore]");
-    const ignore =
-      ignored
-        ?.getAttribute("data-glocon-ignore")
-        ?.split(/[\s,]+/)
-        .filter(Boolean) ?? [];
-    if (ignore.length)
-      limitations.push(
-        `Inline suppression at ${targetFor(ignored!)}: ${ignore.join(", ")} (custom rules only).`,
-      );
+    const ignore = ignoreFor(el);
     elements.push({
       target: targetFor(el),
       tag,
       role,
       name: rawName ? "[named]" : "",
-      visible: isVisible(el),
+      visible,
       disabled:
         el.matches(":disabled") ||
         !!el.closest("[inert]") ||

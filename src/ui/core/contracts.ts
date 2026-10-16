@@ -1,4 +1,4 @@
-import { createReport, fingerprint } from "./report";
+import { createReport, fingerprint, validateAuditOptions } from "./report";
 import type { AuditOptions, AuditReport, Finding } from "./types";
 export interface UIRequirement {
   selector: string;
@@ -37,6 +37,7 @@ export function checkContract(
   observations: Record<string, StateObservation>,
   options: AuditOptions = {},
 ): AuditReport {
+  validateAuditOptions(options);
   defineContract(contract);
   for (const state of Object.keys(observations))
     if (!Object.hasOwn(contract.states, state))

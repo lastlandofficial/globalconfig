@@ -1,14 +1,13 @@
-import { D, decimal } from "../internal";
+import { D, assertDecimalInputLength, decimal } from "../internal";
 import type { BillingPolicy, ComplianceConfig, Quantity } from "./types";
 
-export function calculationEngine(config: Pick<ComplianceConfig, "billing">) {
-  return config.billing
-    ? ("glocon-order-2" as const)
-    : ("glocon-order-1" as const);
+export function calculationEngine(_config: Pick<ComplianceConfig, "billing">) {
+  return "glocon-order-3" as const;
 }
 
 /** Converts quantities to exact integer units; no binary floating-point accumulation. */
 export function quantityUnits(value: unknown, policy?: BillingPolicy): bigint {
+  if (typeof value === "string") assertDecimalInputLength(value, "Quantity");
   if (typeof value === "number") {
     if (!Number.isSafeInteger(value))
       throw Error(

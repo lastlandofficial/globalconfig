@@ -85,3 +85,20 @@ test("formatting uses an explicit locale and destination", () => {
     /5:30/,
   );
 });
+
+test("slashless IANA aliases are validated as zones while country aliases retain their rules", () => {
+  for (const [zone, offset] of [
+    ["GMT", "+00:00"],
+    ["CET", "+01:00"],
+    ["EST", "-05:00"],
+  ]) {
+    assert.equal(resolveTimeZone(zone), zone);
+    assert.equal(convertTime("2026-01-01T12:00Z", zone).offset, offset);
+    assert.equal(typeof formatTime(0, { timeZone: zone }), "string");
+  }
+  assert.equal(resolveTimeZone(" india "), "Asia/Kolkata");
+  assert.equal(resolveTimeZone("Japan"), "Asia/Tokyo");
+  assert.throws(() => resolveTimeZone(" USA "), /multiple time zones/);
+  for (const zone of ["InvalidZone", "Invalid/Zone", "+05:30", "-08:00"])
+    assert.throws(() => resolveTimeZone(zone));
+});

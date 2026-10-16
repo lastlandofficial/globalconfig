@@ -1,15 +1,15 @@
 # Check what happens after a click
 
-Version 0.5.0 adds interaction scenarios to `glocon check`. Describe a flow once in `glocon.check.json`; glocon runs it in a fresh browser context at every configured screen size, verifies the requested state, then audits that state for UI and accessibility findings.
+Interaction scenarios were added in 0.5.0; this guide describes the 0.7.0 candidate. [Install the candidate](../../README.md#install) before following it. Describe a flow once in `glocon.check.json`; glocon runs it in a fresh browser context at every configured screen size, verifies the requested state, then audits that state for UI and accessibility findings.
 
 Start with the existing project workflow:
 
 ```sh
-npx glocon init --ui
-npx glocon check --example
+npx --no-install glocon init --ui
+npx --no-install glocon check --example
 ```
 
-The second command prints a page entry with loading, error, retry, and success examples. Copy it into the `pages` array of `glocon.check.json`, replacing the route, selectors, endpoint, and response payloads to match your app. It does not change files or discover your application's behavior. Then run `npx glocon check` locally or in the generated CI workflow.
+The second command prints a page entry with loading, error, retry, and success examples. Copy it into the `pages` array of `glocon.check.json`, replacing the route, selectors, endpoint, and response payloads to match your app. It does not change files or discover your application's behavior. Then run `npx --no-install glocon check` locally or in the generated CI workflow.
 
 For example, this checks that a failed save can be retried and keeps the user's input:
 
@@ -55,9 +55,11 @@ States: `visible`, `hidden`, `enabled`, `disabled`, `focused`. `hidden` also pas
 
 Server-rendered apps must make controls actionable only after hydration. Disable inputs/buttons until their handlers are attached, or start a scenario with an `expect` step for your app’s explicit readiness marker. Playwright can see server-rendered controls before they are interactive; a successful click alone cannot prove that a handler ran.
 
-Use `press` plus `focused` expectations for keyboard flows, `value` to check retained input, and a success message to verify recovery. Every action has the configured `audit.timeout` budget (30 seconds by default). glocon also bounds each complete scenario run and closes its context on interruption.
+Use `press` plus `focused` expectations for keyboard flows, `value` to check retained input, and a success message to verify recovery. The complete case shares its configured `audit.timeout` budget (30 seconds by default), including navigation, authentication, steps, final readiness and auditing. Each action uses the remaining case budget. An optional project `runTimeout` can impose an earlier overall deadline. glocon closes the context on interruption.
 
 A scenario can provide `readySelector` to wait for its final state before the audit. It overrides page and audit readiness settings. Protected pages still verify `auth.readySelector` before the steps run. Existing Playwright test-session setup works unchanged.
+
+For a flow that intentionally navigates, set scenario `expectedURL` to the reviewed final destination, for example `{ "name": "save opens detail", "expectedURL": "/projects/demo", "steps": [...] }`. Without it the expected final URL is the page's `expectedURL` or configured path. An expected destination must stay on the configured origin; exact query and fragment are checked as well as the normalized path. Final navigation is verified after readiness and auditing, including navigation triggered during the scan. Declaring a destination does not replace the scenario's behavior assertions.
 
 ## Repeatable API states
 
@@ -75,6 +77,6 @@ Each scenario runs independently at each viewport. A page with `scenarios` repla
 
 The report names the page, scenario, and screen, lists passed/failed/not-run steps, and includes normal findings and highlighted screenshots from the final audit. Only the final state is audited. Add separate scenarios for loading, error, and success when each needs UI coverage.
 
-A failed action, unmet expectation, or unused mock response exits **2 (incomplete)**, even with `failOn: "none"`. It cannot be accepted into a baseline. A completed audit with new findings at the configured severity exits **1**. Reviewed findings use the existing reason-and-expiry baseline workflow. Changing a scenario's steps or mocks creates a new case identity; old findings cannot silently carry over. Pages without scenarios keep their 0.4.0 identities.
+A failed action, unmet expectation, or unused mock response exits **2 (incomplete)**, even with `failOn: "none"`. It cannot be accepted into a baseline. A completed audit with new findings at the configured severity exits **1**. Reviewed findings use the existing reason-and-expiry baseline workflow. Changing a scenario's steps, mocks or explicit final destination creates a new case identity; old findings cannot silently carry over. Pages without scenarios keep their 0.4.0 identities.
 
 Step logs and failure messages omit fill values, pressed keys, expected text, expected values, and response payloads. Selectors and scenario names remain visible. Audit evidence and screenshots can contain application content; input masking does not remove text copied elsewhere in the UI. Keep test data and local reports appropriate for sharing.

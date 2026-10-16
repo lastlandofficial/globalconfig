@@ -3,12 +3,18 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
+      fail-fast: false
       matrix:
         node: [20, 22, 24]
     steps:
@@ -18,10 +24,116 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - run: npm run check
+      - run: npm run format:check
+      - run: npm audit --audit-level=moderate
+  full-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run check:all
+      - run: npm run build
+      - run: npm run test:browser
+      - run: npm run test:ui-package
+      - run: npm run test:docs-workflows
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: chromium-failure-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+  minimum-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.3.0
+      - run: npm run test:minimum-runtime
+  desktop-packages:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - name: Verify isolated packed consumer
+        shell: bash
+        run: |
+          npm exec -- node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { spawnSync } from 'node:child_process';
+          import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { join } from 'node:path';
+          const root = process.cwd();
+          const consumer = mkdtempSync(join(tmpdir(), 'glocon-platform-'));
+          const run = (executable, args, cwd = consumer) => {
+            const result = spawnSync(executable === 'npm' ? process.execPath : executable, executable === 'npm' ? [process.env.npm_execpath, ...args] : args, {
+              cwd,
+              encoding: 'utf8',
+            });
+            if (result.error) throw result.error;
+            assert.equal(result.status, 0, result.stdout + result.stderr);
+            return result.stdout;
+          };
+          try {
+            const packed = JSON.parse(run('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', consumer], root))[0];
+            writeFileSync(join(consumer, 'package.json'), JSON.stringify({ private: true, type: 'module' }));
+            run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', join(consumer, packed.filename)]);
+            writeFileSync(join(consumer, 'smoke.mjs'), `
+              import assert from 'node:assert/strict';
+              import { createRequire } from 'node:module';
+              import { createGlobalConfig } from 'glocon';
+              import { calculateOrder, createComplianceExample } from 'glocon/compliance';
+              const require = createRequire(import.meta.url);
+              assert.equal(createGlobalConfig('IN').currency.toMinorUnits('1.25'), 125n);
+              assert.equal(require('glocon').getCountry('Japan').code, 'JP');
+              for (const entry of ['countries', 'currency', 'time', 'tax', 'laws', 'compliance', 'compliance/server', 'compliance/sources', 'check']) {
+                assert.ok(Object.keys(await import('glocon/' + entry)).length);
+                assert.ok(Object.keys(require('glocon/' + entry)).length);
+              }
+              const example = createComplianceExample('JP');
+              const result = calculateOrder(example.config, example.order);
+              assert.equal(result.status, 'ready');
+              assert.equal(result.value.engine, 'glocon-order-3');
+            `);
+            run(process.execPath, ['smoke.mjs']);
+            assert.equal(run(process.execPath, [join(consumer, 'node_modules/glocon/bin/glocon.mjs'), '--version']).trim(), packed.version);
+            console.log(`Verified ${packed.filename} on ${process.platform}: packed installation, ESM/CJS, financial calculation and CLI.`);
+          } finally {
+            rmSync(consumer, { recursive: true, force: true });
+          }
+          NODE
   package-managers:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +150,7 @@ jobs:
       - run: node scripts/check-managers.mjs
   frameworks:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -47,9 +160,19 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:frameworks
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: framework-failure-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
 
   browsers:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,9 +183,19 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run build
       - run: npm run test:browser:matrix
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-matrix-failure-evidence
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
 
   electron:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -103,6 +236,8 @@ jobs:
         if: always()
         with:
           name: native-android-evidence
+          if-no-files-found: ignore
+          retention-days: 7
           path: |
             /tmp/glocon-native-results.json
             /tmp/glocon-native-validation-events.json

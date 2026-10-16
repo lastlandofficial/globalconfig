@@ -1,14 +1,22 @@
-import { currencyDigits, getCountry } from "../countries";
-import { D, freeze, rounding } from "../internal";
-import { calculationEngine } from "./billing";
-import { roundTax } from "../tax-rounding";
+import { D, assertMoneyOutput, freeze, rounding } from "../internal";
+import {
+  ORDER_LIMITATIONS_1,
+  ORDER_PROFILE_1,
+  ORDER_PROFILE_ID,
+} from "./profiles";
 import { validateComplianceConfig, validateOrder, money } from "./validation";
+import {
+  validateComplianceConfig as validateHistoricalConfig,
+  validateOrder as validateHistoricalOrder,
+  money as historicalMoney,
+} from "./legacy-validation";
+import { roundTax } from "../tax-rounding";
 import {
   copy,
   digest,
   issue,
   createReviewedTaxProvider,
-  requirements,
+  createHistoricalTaxProvider,
 } from "./rules";
 import type {
   Calculation,
@@ -45,10 +53,44 @@ export function calculateOrder(
   configInput: ComplianceConfig,
   orderInput: Order,
 ): Result<Calculation> {
+  return calculateOrderAtVersion(
+    configInput,
+    orderInput,
+    "glocon-order-3",
+    {
+      validateComplianceConfig,
+      validateOrder,
+      money,
+    },
+    createReviewedTaxProvider,
+  );
+}
+/** Version branches preserve historical financial semantics; upgrades add versions rather than editing old branches. */
+function calculateOrderAtVersion(
+  configInput: ComplianceConfig,
+  orderInput: Order,
+  engine: Calculation["engine"],
+  validation: {
+    validateComplianceConfig: typeof validateComplianceConfig;
+    validateOrder: typeof validateOrder;
+    money: typeof money;
+  },
+  createProvider: typeof createReviewedTaxProvider,
+): Result<Calculation> {
   try {
+    const historical = engine !== "glocon-order-3";
+    // Inject replay-only dependencies so fresh calculateOrder imports can omit historical code.
+    const { validateComplianceConfig, validateOrder, money } = validation;
     const config = copy(validateComplianceConfig(configInput));
-    const country = getCountry(config.business.country);
-    const digits = currencyDigits(country.currency);
+    if (
+      (engine === "glocon-order-1" && config.billing) ||
+      (engine === "glocon-order-2" && !config.billing)
+    )
+      throw Error(
+        "Historical engine identifier does not match its billing policy.",
+      );
+    const country = ORDER_PROFILE_1.countries[config.business.country];
+    const digits = country.digits;
     const scale = new D(10).pow(digits);
     const minor = (v: string) => BigInt(new D(v).mul(scale).toFixed(0));
     const amount = (v: bigint) =>
@@ -57,7 +99,10 @@ export function calculateOrder(
     const missing: ComplianceIssue[] = [];
     if (
       config.billing &&
-      (order.date < config.billing.review.on ||
+      (order.date <
+        (historical
+          ? config.billing.review.on
+          : (config.billing.review.appliesFrom ?? config.billing.review.on)) ||
         order.date >= config.billing.review.after)
     )
       missing.push(
@@ -99,12 +144,20 @@ export function calculateOrder(
           ),
         ],
       };
-    if (!config.business.review || order.date >= config.business.review.after)
+    if (
+      !config.business.review ||
+      order.date >= config.business.review.after ||
+      (!historical &&
+        order.date <
+          (config.business.review.appliesFrom ?? config.business.review.on))
+    )
       missing.push(
         issue(
           "BUSINESS-REVIEW",
           "business.review",
-          "Business scope review is missing or expired.",
+          historical
+            ? "Business scope review is missing or expired."
+            : "Business scope review is missing or does not cover this transaction date.",
           "Record the registration, invoice and treatment applicability review.",
         ),
       );
@@ -129,7 +182,7 @@ export function calculateOrder(
           ),
         ],
       };
-    for (const expected of requirements.filter(
+    for (const expected of ORDER_PROFILE_1.requirements.filter(
       (r) => r.country === country.code,
     )) {
       const r = config.rules.requirements.find((r) => r.id === expected.id);
@@ -151,12 +204,17 @@ export function calculateOrder(
             ),
           ],
         };
-      if (order.date >= r.reviewAfter)
+      if (
+        order.date >= r.reviewAfter ||
+        (!historical && order.date < (r.reviewAppliesFrom ?? r.reviewedOn))
+      )
         missing.push(
           issue(
             "SOURCE-REVIEW",
             `rules.requirements.${r.id}`,
-            "The scheduled requirement review is due.",
+            historical
+              ? "The scheduled requirement review is due."
+              : "The requirement review does not cover this transaction date.",
             "Review the source and scope before renewing the rule pack.",
             r.source,
           ),
@@ -185,7 +243,7 @@ export function calculateOrder(
         throw Error("Inter-state supplies cannot specify localTax.");
     } else if (order.supply || order.localTax || order.placeOfSupply)
       throw Error("India supply fields cannot be used for this country.");
-    const provider = createReviewedTaxProvider(config.rules.treatments);
+    const provider = createProvider(config.rules.treatments);
     const selected: {
       product: ComplianceConfig["products"][number];
       rule: TreatmentRule;
@@ -219,7 +277,9 @@ export function calculateOrder(
       if (
         country.code === "JP" &&
         rule.treatment === "taxable" &&
-        ![8, 10].includes(Number(rule.rate))
+        (historical
+          ? ![8, 10].includes(Number(rule.rate))
+          : !(new D(rule.rate).eq(8) || new D(rule.rate).eq(10)))
       )
         return {
           status: "unsupported",
@@ -233,7 +293,8 @@ export function calculateOrder(
           ],
         };
       const total = new D(product.unitPrice).mul(line.quantity);
-      if (config.billing && total.gte("1e30"))
+      if (!historical) assertMoneyOutput(total, "Extended line amount");
+      else if (config.billing && total.gte("1e30"))
         throw Error("Extended line amount must have a magnitude below 1e30.");
       const discount = money(line.discount ?? "0", digits, "Line discount");
       if (discount.gt(total))
@@ -355,7 +416,8 @@ export function calculateOrder(
     const sum = (field: "net" | "tax" | "gross" | "discount") =>
       lines.reduce((n, l) => n.plus(l[field]), new D(0)).toFixed(digits);
     const body = {
-      engine: calculationEngine(config),
+      engine,
+      ...(historical ? {} : { profile: ORDER_PROFILE_ID }),
       currency: country.currency,
       country: country.code,
       lines,
@@ -365,14 +427,10 @@ export function calculateOrder(
       gross: sum("gross"),
       discount: sum("discount"),
       snapshot: { config, order },
-      limitations: [
-        "Reviewed transaction inputs are supplied by the business; registration, product classification and jurisdiction are not determined automatically.",
-        "Line tax amounts are allocations of rate-group totals, not independently rounded tax amounts.",
-        "This result is a calculation, not government registration, a tax return or compliance certification.",
-      ],
+      limitations: [...ORDER_LIMITATIONS_1],
     };
     if (
-      config.billing &&
+      (config.billing || !historical) &&
       [body.net, body.tax, body.gross, body.discount].some((value) =>
         new D(value).gte("1e30"),
       )
@@ -399,11 +457,57 @@ export function calculateOrder(
 /** Recompute saved inputs. A digest detects changes; it is not a signature or authenticity proof. */
 export function verifyCalculation(value: Calculation): boolean {
   try {
-    if (value.engine !== "glocon-order-1" && value.engine !== "glocon-order-2")
-      return false;
-    const replay = calculateOrder(value.snapshot.config, value.snapshot.order);
+    const replay = replayCalculation(value);
     return replay.status === "ready" && digest(replay.value) === digest(value);
   } catch {
     return false;
+  }
+}
+/** Recompute stored inputs using their registered engine/profile, independently of current defaults. */
+export function replayCalculation(value: Calculation): Result<Calculation> {
+  try {
+    if (
+      !["glocon-order-1", "glocon-order-2", "glocon-order-3"].includes(
+        value.engine,
+      )
+    )
+      throw Error("Unsupported calculation engine.");
+    if (
+      value.engine === "glocon-order-3"
+        ? value.profile !== ORDER_PROFILE_ID
+        : value.profile !== undefined
+    )
+      throw Error("Unsupported or mismatched historical calculation profile.");
+    return calculateOrderAtVersion(
+      value.snapshot.config,
+      value.snapshot.order,
+      value.engine,
+      value.engine === "glocon-order-3"
+        ? {
+            validateComplianceConfig,
+            validateOrder,
+            money,
+          }
+        : {
+            validateComplianceConfig: validateHistoricalConfig,
+            validateOrder: validateHistoricalOrder,
+            money: historicalMoney,
+          },
+      value.engine === "glocon-order-3"
+        ? createReviewedTaxProvider
+        : createHistoricalTaxProvider,
+    );
+  } catch (error) {
+    return {
+      status: "invalid",
+      issues: [
+        issue(
+          "INVALID-SNAPSHOT",
+          "snapshot",
+          error instanceof Error ? error.message : String(error),
+          "Use an intact snapshot with a supported engine and pinned profile.",
+        ),
+      ],
+    };
   }
 }

@@ -1,15 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/glocon-v0.5.0/docs/ui/check-config.schema.json",
+  "$id": "https://raw.githubusercontent.com/lastlandofficial/globalconfig/main/docs/ui/check-config.schema.json",
   "title": "glocon project checks",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "version",
-    "baseURL",
-    "pages",
-    "viewports"
-  ],
+  "required": ["version", "baseURL", "pages", "viewports"],
   "properties": {
     "$schema": {
       "type": "string",
@@ -37,9 +32,7 @@
           {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "path"
-            ],
+            "required": ["path"],
             "properties": {
               "path": {
                 "type": "string",
@@ -69,6 +62,12 @@
                   "$ref": "#/$defs/scenario"
                 },
                 "description": "Each named scenario runs in an isolated context at every viewport; replaces the plain page check."
+              },
+              "expectedURL": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?:/(?!/)|[Hh][Tt][Tt][Pp][Ss]?://)",
+                "description": "Reviewed initial destination after redirects; defaults to path. Same-origin HTTP(S) URL or /path; include its exact query and fragment."
               }
             }
           }
@@ -81,11 +80,7 @@
       "maxItems": 12,
       "items": {
         "type": "object",
-        "required": [
-          "name",
-          "width",
-          "height"
-        ],
+        "required": ["name", "width", "height"],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -103,10 +98,7 @@
             "maximum": 4096
           },
           "colorScheme": {
-            "enum": [
-              "light",
-              "dark"
-            ]
+            "enum": ["light", "dark"]
           }
         }
       }
@@ -114,9 +106,7 @@
     "webServer": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "command"
-      ],
+      "required": ["command"],
       "properties": {
         "command": {
           "type": "string",
@@ -137,10 +127,7 @@
     "auth": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "storageState",
-        "readySelector"
-      ],
+      "required": ["storageState", "readySelector"],
       "properties": {
         "storageState": {
           "type": "string",
@@ -187,12 +174,7 @@
         "rules": {
           "type": "object",
           "additionalProperties": {
-            "enum": [
-              "error",
-              "warning",
-              "info",
-              "off"
-            ]
+            "enum": ["error", "warning", "info", "off"]
           }
         },
         "spacingScale": {
@@ -215,10 +197,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "ruleId",
-              "reason"
-            ],
+            "required": ["ruleId", "reason"],
             "properties": {
               "ruleId": {
                 "type": "string",
@@ -236,26 +215,31 @@
           }
         },
         "coveragePolicy": {
-          "enum": [
-            "complete",
-            "allow-truncated"
-          ]
+          "enum": ["complete", "allow-truncated"]
         }
       }
     },
     "failOn": {
-      "enum": [
-        "error",
-        "warning",
-        "info",
-        "none"
-      ],
+      "enum": ["error", "warning", "info", "none"],
       "default": "error"
     },
     "screenshots": {
       "type": "boolean",
       "default": true,
       "description": "Save local highlighted viewport screenshots. They may contain app content."
+    },
+    "concurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "default": 2,
+      "description": "Maximum simultaneous isolated page/viewport checks. Reports keep configuration order."
+    },
+    "runTimeout": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 86400000,
+      "description": "Shared deadline in milliseconds for startup, authentication and all page checks. Timed-out checks are incomplete."
     }
   },
   "$defs": {
@@ -264,10 +248,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "action",
-            "selector"
-          ],
+          "required": ["action", "selector"],
           "properties": {
             "action": {
               "const": "click"
@@ -281,11 +262,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "action",
-            "selector",
-            "value"
-          ],
+          "required": ["action", "selector", "value"],
           "properties": {
             "action": {
               "const": "fill"
@@ -302,11 +279,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "action",
-            "selector",
-            "key"
-          ],
+          "required": ["action", "selector", "key"],
           "properties": {
             "action": {
               "const": "press"
@@ -324,11 +297,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "action",
-            "selector",
-            "state"
-          ],
+          "required": ["action", "selector", "state"],
           "properties": {
             "action": {
               "const": "expect"
@@ -338,24 +307,14 @@
               "minLength": 1
             },
             "state": {
-              "enum": [
-                "visible",
-                "hidden",
-                "enabled",
-                "disabled",
-                "focused"
-              ]
+              "enum": ["visible", "hidden", "enabled", "disabled", "focused"]
             }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "action",
-            "selector",
-            "text"
-          ],
+          "required": ["action", "selector", "text"],
           "properties": {
             "action": {
               "const": "expect"
@@ -372,11 +331,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "action",
-            "selector",
-            "value"
-          ],
+          "required": ["action", "selector", "value"],
           "properties": {
             "action": {
               "const": "expect"
@@ -395,10 +350,7 @@
     "mock": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "path",
-        "responses"
-      ],
+      "required": ["path", "responses"],
       "properties": {
         "path": {
           "type": "string",
@@ -406,14 +358,7 @@
           "description": "Exact same-origin pathname. Query strings on requests are ignored."
         },
         "method": {
-          "enum": [
-            "GET",
-            "POST",
-            "PUT",
-            "PATCH",
-            "DELETE",
-            "HEAD"
-          ],
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"],
           "default": "GET"
         },
         "responses": {
@@ -425,9 +370,7 @@
               {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "pending"
-                ],
+                "required": ["pending"],
                 "properties": {
                   "pending": {
                     "const": true
@@ -457,23 +400,18 @@
                 "allOf": [
                   {
                     "if": {
-                      "required": [
-                        "status"
-                      ],
+                      "required": ["status"],
                       "properties": {
                         "status": {
-                          "enum": [
-                            204,
-                            205
-                          ]
+                          "enum": [204, 205]
                         }
-                      }
+                      },
+                      "type": "object"
                     },
                     "then": {
                       "not": {
-                        "required": [
-                          "json"
-                        ]
+                        "required": ["json"],
+                        "type": "object"
                       }
                     }
                   }
@@ -486,25 +424,24 @@
       "allOf": [
         {
           "if": {
-            "required": [
-              "method"
-            ],
+            "required": ["method"],
             "properties": {
               "method": {
                 "const": "HEAD"
               }
-            }
+            },
+            "type": "object"
           },
           "then": {
             "properties": {
               "responses": {
                 "items": {
                   "not": {
-                    "required": [
-                      "json"
-                    ]
+                    "required": ["json"],
+                    "type": "object"
                   }
-                }
+                },
+                "type": "array"
               }
             }
           }
@@ -514,10 +451,7 @@
     "scenario": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "name",
-        "steps"
-      ],
+      "required": ["name", "steps"],
       "properties": {
         "name": {
           "type": "string",
@@ -540,6 +474,12 @@
           "items": {
             "$ref": "#/$defs/mock"
           }
+        },
+        "expectedURL": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?:/(?!/)|[Hh][Tt][Tt][Pp][Ss]?://)",
+          "description": "Reviewed final destination after scenario steps; defaults to the page destination. Same-origin HTTP(S) URL or /path; include its exact query and fragment."
         }
       }
     }

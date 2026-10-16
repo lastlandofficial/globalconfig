@@ -2,13 +2,16 @@ import { D, dateOnly, freeze } from "../internal";
 import { currencyDigits } from "../countries";
 import { calculateOrder, verifyCalculation } from "./engine";
 import { copy, digest, issue, requirements } from "./rules";
-import { array, keys, obj, review, text, unique } from "./validation";
+import { array, keys, obj, review, text } from "./validation";
 import { quantityUnits } from "./billing";
+import { quantityUnits as legacyQuantityUnits } from "./legacy-validation";
 import type {
   Calculation,
+  CalculatedLine,
   ComplianceConfig,
   ComplianceIssue,
   CreditNoteDraft,
+  CreditNoteOptions,
   CreditRequest,
   InvoiceDetails,
   InvoiceDraft,
@@ -71,18 +74,35 @@ export function validateInvoice(invoice: InvoiceDraft): {
         );
     };
     // Issue-date review freshness is separate from transaction-date tax selection.
+    const selectedReviews = [
+      b.review,
+      c.snapshot.config.billing?.review,
+      ...c.lines.map(
+        (line) =>
+          c.snapshot.config.rules.treatments.find(
+            (rule) => rule.id === line.ruleId,
+          )?.review,
+      ),
+    ].filter((review) => review !== undefined);
     if (
       d.issuedOn >= (b.review?.after ?? "") ||
       c.snapshot.config.rules.requirements.some(
         (r) => r.country === b.country && d.issuedOn >= r.reviewAfter,
-      )
+      ) ||
+      (c.engine === "glocon-order-3" &&
+        (selectedReviews.some(
+          (review) => d.issuedOn < review.on || d.issuedOn >= review.after,
+        ) ||
+          c.snapshot.config.rules.requirements.some(
+            (r) => r.country === b.country && d.issuedOn < r.reviewedOn,
+          )))
     )
       issues.push(
         issue(
           "ISSUE-REVIEW",
           "details.issuedOn",
-          "Review evidence is stale for issuance.",
-          "Renew reviews and recalculate before creating an invoice.",
+          "Review evidence is outside its issuance period or was recorded after the issue date.",
+          "Use an issue date covered by completed reviews and recalculate after renewing expired evidence.",
         ),
       );
     if (b.country === "IN") {
@@ -270,50 +290,66 @@ export function createCreditNoteDraft(
   original: InvoiceDraft,
   request: CreditRequest,
   previous: readonly CreditNoteDraft[] = [],
+  options: CreditNoteOptions = {},
 ): Result<CreditNoteDraft> {
   try {
     if (!validateInvoice(original).valid)
       throw Error("Original invoice is invalid.");
-    obj(request);
-    keys(request, ["number", "date", "reason", "review", "lines"]);
-    text(request.number, "Credit number");
-    text(request.reason, "Credit reason");
-    dateOnly(request.date);
-    review(request.review);
+    array(previous, "Credit history", 0, 10000);
+    obj(options);
+    keys(options, ["version"]);
     if (
-      request.date < original.details.issuedOn ||
-      request.date >= request.review.after
+      options.version !== undefined &&
+      options.version !== 1 &&
+      options.version !== 2
     )
-      throw Error("Credit date precedes invoice or credit review has expired.");
-    array(request.lines, "Credit lines", 1);
-    const billing = original.calculation.snapshot.config.billing;
-    const ids = new Set<string>();
-    for (const l of request.lines) {
-      obj(l);
-      keys(l, ["lineId", "quantity"]);
-      text(l.lineId, "Line ID");
-      quantityUnits(l.quantity, billing);
-      if (ids.has(l.lineId))
-        throw Error(
-          "Credit lines require unique IDs and positive reviewed quantities.",
-        );
-      ids.add(l.lineId);
-    }
+      throw Error("Credit version must be 1 or 2.");
+    const version =
+      options.version ??
+      (original.calculation.engine === "glocon-order-3" ||
+      previous.some((credit) => credit?.version === 2)
+        ? 2
+        : 1);
+    const units = (quantity: unknown) =>
+      creditQuantityUnits(original, quantity);
+    validateCreditRequest(original, request, version);
     const c = original.calculation,
       digits = currencyDigits(c.currency),
       scale = new D(10).pow(digits);
     const minor = (v: string) => BigInt(new D(v).mul(scale).toFixed(0));
     const amount = (v: bigint) =>
       new D(v.toString()).div(scale).toFixed(digits);
+    const sources = new Map(
+      c.lines.map((line) => [
+        line.id,
+        {
+          line,
+          quantity: units(line.quantity),
+          net: minor(line.net),
+          tax: minor(line.tax),
+        },
+      ]),
+    );
     const used = new Map<
       string,
       { quantity: bigint; net: bigint; tax: bigint }
     >();
     const priorIds = new Set<string>();
-    for (const [index, credit] of previous.entries()) {
+    const priorNumbers = new Set<string>();
+    // Legacy digests are accumulated once. Version 2 uses only the immediate
+    // predecessor, while allocations always replay the entire supplied chain.
+    const priorDigests: string[] = [];
+    let lastDate = original.details.issuedOn;
+    for (const credit of previous) {
+      obj(credit);
+      if (credit.version !== 1 && credit.version !== 2)
+        throw Error("Unsupported credit history version.");
+      validateCreditRequest(original, credit.request, credit.version);
       if (
         credit.originalDigest !== original.digest ||
         priorIds.has(credit.digest) ||
+        priorNumbers.has(credit.request.number) ||
+        credit.request.date < lastDate ||
         credit.request.date > request.date ||
         credit.request.number === request.number
       )
@@ -324,33 +360,45 @@ export function createCreditNoteDraft(
       const expected = creditBody(
         original,
         credit.request,
-        previous.slice(0, index),
+        priorDigests,
         used,
+        sources,
+        units,
         minor,
         amount,
+        credit.version,
       );
-      if (digest({ ...expected, digest: digest(expected) }) !== digest(credit))
+      const { digest: recordedDigest, ...recordedBody } = credit;
+      if (
+        recordedDigest !== digest(expected) ||
+        digest(recordedBody) !== recordedDigest
+      )
         throw Error("Credit history does not replay.");
       priorIds.add(credit.digest);
-      for (const line of credit.lines) {
+      priorNumbers.add(credit.request.number);
+      priorDigests.push(credit.digest);
+      lastDate = credit.request.date;
+      for (const line of expected.lines) {
         const u = used.get(line.lineId) ?? { quantity: 0n, net: 0n, tax: 0n };
         used.set(line.lineId, {
-          quantity: u.quantity + quantityUnits(line.quantity, billing),
+          quantity: u.quantity + units(line.quantity),
           net: u.net + minor(line.net),
           tax: u.tax + minor(line.tax),
         });
       }
     }
     for (const line of request.lines)
-      if (!c.lines.some((l) => l.id === line.lineId))
-        throw Error("Unknown invoice line.");
+      if (!sources.has(line.lineId)) throw Error("Unknown invoice line.");
     const body = creditBody(
       original,
       copy(request),
-      previous,
+      priorDigests,
       used,
+      sources,
+      units,
       minor,
       amount,
+      version,
     );
     return {
       status: "ready",
@@ -370,48 +418,80 @@ export function createCreditNoteDraft(
     };
   }
 }
+function validateCreditRequest(
+  original: InvoiceDraft,
+  request: CreditRequest,
+  version: 1 | 2,
+) {
+  obj(request);
+  keys(request, ["number", "date", "reason", "review", "lines"]);
+  text(request.number, "Credit number");
+  text(request.reason, "Credit reason");
+  dateOnly(request.date);
+  review(request.review);
+  if (
+    request.date < original.details.issuedOn ||
+    request.date >= request.review.after ||
+    ((original.calculation.engine === "glocon-order-3" || version === 2) &&
+      (request.date < request.review.on ||
+        request.date < (request.review.appliesFrom ?? request.review.on)))
+  )
+    throw Error(
+      "Credit date precedes the invoice or is outside its completed review period.",
+    );
+  array(request.lines, "Credit lines", 1);
+  const ids = new Set<string>();
+  for (const line of request.lines) {
+    obj(line);
+    keys(line, ["lineId", "quantity"]);
+    text(line.lineId, "Line ID");
+    if (version === 2)
+      quantityUnits(
+        line.quantity,
+        original.calculation.snapshot.config.billing,
+      );
+    else creditQuantityUnits(original, line.quantity);
+    if (ids.has(line.lineId))
+      throw Error(
+        "Credit lines require unique IDs and positive reviewed quantities.",
+      );
+    ids.add(line.lineId);
+  }
+}
+function creditQuantityUnits(
+  original: InvoiceDraft,
+  quantity: unknown,
+): bigint {
+  const parse =
+    original.calculation.engine === "glocon-order-3"
+      ? quantityUnits
+      : legacyQuantityUnits;
+  return parse(quantity, original.calculation.snapshot.config.billing);
+}
 function creditBody(
   original: InvoiceDraft,
   request: CreditRequest,
-  previous: readonly CreditNoteDraft[],
+  previousDigests: string[],
   used: Map<string, { quantity: bigint; net: bigint; tax: bigint }>,
+  sources: ReadonlyMap<
+    string,
+    { line: CalculatedLine; quantity: bigint; net: bigint; tax: bigint }
+  >,
+  units: (quantity: unknown) => bigint,
   minor: (v: string) => bigint,
   amount: (v: bigint) => string,
+  version: 1 | 2,
 ) {
-  review(request.review);
-  dateOnly(request.date);
-  text(request.number, "Credit number");
-  text(request.reason, "Credit reason");
-  if (
-    request.date < original.details.issuedOn ||
-    request.date >= request.review.after
-  )
-    throw Error("Invalid credit date/review.");
-  array(request.lines, "Credit lines", 1);
-  unique(request.lines.map((l) => ({ id: l.lineId })));
   const lines = request.lines.map((l) => {
-    const source = original.calculation.lines.find((s) => s.id === l.lineId);
+    const source = sources.get(l.lineId);
     const u = used.get(l.lineId) ?? { quantity: 0n, net: 0n, tax: 0n };
-    const billedQuantity = quantityUnits(
-      l.quantity,
-      original.calculation.snapshot.config.billing,
-    );
-    if (
-      !source ||
-      billedQuantity + u.quantity >
-        quantityUnits(
-          source.quantity,
-          original.calculation.snapshot.config.billing,
-        )
-    )
+    const billedQuantity = units(l.quantity);
+    if (!source || billedQuantity + u.quantity > source.quantity)
       throw Error("Credit exceeds remaining invoice quantity.");
     const numerator = billedQuantity + u.quantity,
-      denominator = quantityUnits(
-        source.quantity,
-        original.calculation.snapshot.config.billing,
-      );
-    const net = (minor(source.net) * numerator) / denominator - u.net,
-      tax = (minor(source.tax) * numerator) / denominator - u.tax;
+      denominator = source.quantity;
+    const net = (source.net * numerator) / denominator - u.net,
+      tax = (source.tax * numerator) / denominator - u.tax;
     if (net < 0n || tax < 0n)
       throw Error("Credit history exceeds original amounts.");
     return {
@@ -420,24 +500,30 @@ function creditBody(
       net: amount(net),
       tax: amount(tax),
       gross: amount(net + tax),
-      rate: source.rate,
+      rate: source.line.rate,
     };
   });
-  return {
+  const body = {
     kind: "credit-note" as const,
-    version: 1 as const,
     status: "draft" as const,
     originalDigest: original.digest,
     originalNumber: original.details.number,
     originalDate: original.details.issuedOn,
     request,
-    previousDigests: previous.map((c) => c.digest),
     lines,
     net: amount(lines.reduce((n, l) => n + minor(l.net), 0n)),
     tax: amount(lines.reduce((n, l) => n + minor(l.tax), 0n)),
     gross: amount(lines.reduce((n, l) => n + minor(l.gross), 0n)),
     legalStatus: "review-required" as const,
   };
+  return version === 1
+    ? { ...body, version: 1 as const, previousDigests }
+    : {
+        ...body,
+        version: 2 as const,
+        previousDigest: previousDigests.at(-1) ?? null,
+        historyLength: previousDigests.length,
+      };
 }
 export function renderInvoiceHTML(invoice: InvoiceDraft): string {
   const validation = validateInvoice(invoice);

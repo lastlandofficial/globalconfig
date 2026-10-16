@@ -74,6 +74,11 @@ export interface AuditOptions {
   targetSize?: number;
   suppressions?: Suppression[];
 }
+export interface RuleOutcome {
+  ruleId: string;
+  target?: string;
+  status: "passed" | "failed" | "manual-review";
+}
 export interface AuditReport {
   schemaVersion: "1.0";
   engineVersion: "0.1.0" | "0.2.0";
@@ -83,6 +88,10 @@ export interface AuditReport {
   summary: { error: number; warning: number; info: number; total: number };
   coverage: {
     rules: string[];
+    /** Observed rule results before suppression; a listed rule alone does not prove a pass. */
+    outcomes?: RuleOutcome[];
+    /** Targets present in the supplied snapshot, including web document target html. */
+    targets?: string[];
     elements: number;
     limitations: string[];
     collection?: UISnapshot["collection"];

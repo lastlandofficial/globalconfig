@@ -3,6 +3,7 @@ import type { CountryCode, CurrencyCode } from "./countries";
 import { currencyDigits } from "./countries";
 import {
   D,
+  assertMoneyOutput,
   dateOnly,
   freeze,
   nonNegative,
@@ -123,6 +124,9 @@ export function calculateTax(options: TaxOptions): TaxResult {
     throw new RangeError(
       "Rounding produced negative net value; choose a supported rounding policy for this amount",
     );
+  assertMoneyOutput(net, "Tax net");
+  assertMoneyOutput(tax, "Tax amount");
+  assertMoneyOutput(gross, "Tax gross");
   const components: { name: string; rate: string; amount: string }[] = [];
   if (options.country === "IN") {
     if (options.supply !== "intra-state" && options.supply !== "inter-state")
@@ -237,10 +241,12 @@ export function calculateProgressiveTax(options: {
     if (upper) lower = upper;
     return row;
   });
+  const tax = total.toDecimalPlaces(digits, mode);
+  assertMoneyOutput(tax, "Progressive tax");
   return freeze({
     currency: options.currency,
     taxableIncome: income.toFixed(digits, mode),
-    tax: total.toFixed(digits, mode),
+    tax: tax.toFixed(digits),
     effectiveRate: income.isZero()
       ? "0"
       : total.div(income).mul(100).toFixed(4),

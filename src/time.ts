@@ -8,16 +8,29 @@ export function resolveTimeZone(countryOrZone: string): string {
   if (typeof countryOrZone !== "string" || !countryOrZone.trim())
     throw new TypeError("A country or IANA time zone is required");
   if (countryOrZone.includes("/") || countryOrZone === "UTC") {
-    // Validate with the same implementation used for conversion.
     Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(countryOrZone);
     return countryOrZone;
   }
-  const country = getCountry(countryOrZone);
-  if (country.timeZones.length !== 1)
+  let country: ReturnType<typeof getCountry> | undefined;
+  try {
+    country = getCountry(countryOrZone);
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
+  }
+  if (country) {
+    if (country.timeZones.length !== 1)
+      throw new RangeError(
+        `${country.name} has multiple time zones. Supply an IANA zone such as America/New_York`,
+      );
+    return country.timeZones[0]!;
+  }
+  // IANA identifiers include aliases without a slash, such as GMT and CET.
+  if (/^[+-]/.test(countryOrZone))
     throw new RangeError(
-      `${country.name} has multiple time zones. Supply an IANA zone such as America/New_York`,
+      "Supply an IANA time zone instead of a fixed UTC offset",
     );
-  return country.timeZones[0]!;
+  Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(countryOrZone);
+  return countryOrZone;
 }
 
 function instant(value: InstantInput): Temporal.Instant {

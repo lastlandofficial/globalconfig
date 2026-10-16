@@ -1,6 +1,6 @@
 export type * from "./types";
 export { defineComplianceConfig, validateComplianceConfig } from "./validation";
-export { calculateOrder, verifyCalculation } from "./engine";
+export { calculateOrder, replayCalculation, verifyCalculation } from "./engine";
 export {
   validateInvoice,
   createInvoiceDraft,

@@ -34,11 +34,15 @@
 - Require complete native measurement data.
 - Preserve package sources on setup, make accessibility tooling optional for utility consumers, and verify public default installs after releases.
 - Require financial quote/invoice acceptance scope and independently reviewed expected amounts.
-- Expand automated browser checks across Chromium, Firefox and WebKit, and verify a packaged Linux Electron application with explicit same-origin accessibility coverage.
+- Expand automated browser checks across Chromium, Firefox and WebKit, and record representative packaged Linux Electron and Android/Hermes verification.
+- Bound complete audit/run deadlines, execute cases with limited concurrency, preserve reviewed destinations through scenario navigation and migration, and protect artifacts from overlapping runs.
+- Record explicit passing/failing/manual-review coverage outcomes; resolve baselines only from observed passing evidence.
+- Make CI report artifacts an explicit opt-in, with separate screenshot permission and bounded retention.
+- Provide three onboarding paths, aligned API documentation and a [predeclared independent-trial protocol](../readiness-trials.md).
 
 ## Next: deepen verified workflows
 
-- Trial on real React, Angular, Electron, and native projects; measure false positives and usefulness.
+- Run the separate UI and financial application trials before broadening framework or jurisdiction claims. Recruit independent developers and relevant business reviewers; measure help required, actionable findings and adoption value.
 - Locale matrices and deeper multi-page interaction workflows.
 - Trial baseline usefulness and false-positive rates in production applications.
 - Source locations from framework metadata, without pretending DOM selectors identify source lines.

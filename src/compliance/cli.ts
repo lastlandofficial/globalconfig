@@ -1,5 +1,13 @@
 import { parseArgs } from "node:util";
-import { readFile, writeFile, mkdir, access, rm } from "node:fs/promises";
+import {
+  readFile,
+  writeFile,
+  mkdir,
+  access,
+  rm,
+  rename,
+} from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { validateComplianceConfig } from "./validation";
@@ -21,7 +29,11 @@ import {
   requirements,
   digest,
 } from "./rules";
-import { checkSources } from "./sources";
+import {
+  checkSources,
+  recordSourceBaseline,
+  validateSourceBaseline,
+} from "./sources";
 import type { CountryCode } from "../countries";
 import type {
   ComplianceConfig,
@@ -37,7 +49,7 @@ const help = `glocon — tax and invoice workflows
   glocon compliance lock
   glocon compliance explain <requirement-id>
   glocon compliance rules diff <candidate-config.json>
-  glocon compliance sources check [--record]
+  glocon compliance sources check [--record] [--concurrency <n>] [--per-host-delay <ms>] [--timeout <ms>]
   glocon tax quote <order.json>
   glocon invoice create <order.json> --details <details.json> [--output <file>]
   glocon invoice validate <invoice.json>
@@ -84,6 +96,9 @@ export async function runComplianceCommand(args: string[]) {
       record: { type: "boolean" },
       scope: { type: "string" },
       metered: { type: "boolean" },
+      concurrency: { type: "string" },
+      "per-host-delay": { type: "string" },
+      timeout: { type: "string" },
     },
   });
   if (v.help) {
@@ -99,7 +114,12 @@ export async function runComplianceCommand(args: string[]) {
     "compliance lock": [],
     "compliance explain": [],
     "compliance rules": [],
-    "compliance sources": ["record"],
+    "compliance sources": [
+      "record",
+      "concurrency",
+      "per-host-delay",
+      "timeout",
+    ],
     "tax quote": [],
     "invoice create": ["details", "output"],
     "invoice validate": [],
@@ -262,12 +282,44 @@ export async function runComplianceCommand(args: string[]) {
   if (command === "compliance sources") {
     if (p[2] !== "check") throw Error("Use compliance sources check.");
     const target = resolve(dir, "glocon.sources.json");
-    const baseline = (await exists(target)) ? await readJSON(target) : {};
-    const results = await checkSources(config.rules.requirements, baseline);
+    const baseline = validateSourceBaseline(
+      (await exists(target)) ? await readJSON(target) : {},
+    );
+    const sourceOption = (value: string | undefined, label: string) => {
+      if (value === undefined) return undefined;
+      if (!/^\d+$/.test(value)) throw Error(`--${label} must be an integer.`);
+      return Number(value);
+    };
+    const concurrency = sourceOption(v.concurrency, "concurrency"),
+      perHostDelayMs = sourceOption(v["per-host-delay"], "per-host-delay"),
+      timeoutMs = sourceOption(v.timeout, "timeout");
+    const results = await checkSources(
+      config.rules.requirements,
+      baseline,
+      fetch,
+      {
+        ...(concurrency !== undefined ? { concurrency } : {}),
+        ...(perHostDelayMs !== undefined ? { perHostDelayMs } : {}),
+        ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+      },
+    );
     print(results);
-    if (v.record) {
-      for (const r of results) if (r.digest) baseline[r.url] = r.digest;
-      await writeFile(target, JSON.stringify(baseline, null, 2) + "\n");
+    if (
+      v.record &&
+      results.some((r) => r.digest && r.status !== "unavailable")
+    ) {
+      const temporary = `${target}.${randomUUID()}.tmp`;
+      try {
+        await writeFile(
+          temporary,
+          JSON.stringify(recordSourceBaseline(baseline, results), null, 2) +
+            "\n",
+          { flag: "wx", mode: 0o600 },
+        );
+        await rename(temporary, target);
+      } finally {
+        await rm(temporary, { force: true });
+      }
     }
     process.exitCode = results.some(
       (r) =>
