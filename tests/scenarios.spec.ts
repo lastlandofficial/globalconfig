@@ -39,7 +39,9 @@ async function fixture(scenarios: CheckScenario[]) {
       { name: "phone", width: 390, height: 844 },
       { name: "desktop", width: 1280, height: 800 },
     ],
-    audit: { timeout: 1500 },
+    // Functional cases include navigation, interactions and axe in one budget.
+    // Deadline-specific cases below set their own deliberately short limits.
+    audit: { timeout: 10000 },
     screenshots: false,
     failOn: "none",
   };
